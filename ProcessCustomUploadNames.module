@@ -1,0 +1,229 @@
+<?php
+
+/**
+ * ProcessWire Rename Uploads
+ * by Adrian Jones
+ *
+ * Automatically rename file (and image) uploads according to a configurable format
+ *
+ * ProcessWire 2.x
+ * Copyright (C) 2011 by Ryan Cramer
+ * Licensed under GNU/GPL v2, see LICENSE.TXT
+ *
+ * http://www.processwire.com
+ * http://www.ryancramer.com
+ *
+ */
+
+class ProcessCustomUploadNames extends Process implements Module, ConfigurableModule {
+
+    /**
+     * getModuleInfo is a module required by all modules to tell ProcessWire about them
+     *
+     * @return array
+     *
+     */
+    public static function getModuleInfo() {
+        return array(
+            'title' => __('Custom Upload Names'),
+            'version' => 1,
+            'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
+            'singular' => true,
+            'autoload' => true,
+            );
+    }
+
+
+    protected static $configDefaults = array(
+        // global
+        "enabledFields" => "",
+        "enabledPages" => "",
+        "enabledTemplates" => "",
+        "filenameFormat" => ""
+    );
+
+
+    /**
+     * Data as used by the get/set functions
+     *
+     */
+    protected $data = array();
+
+
+    /**
+     * __construct() is the right place to init config vars before they'll get populated
+     *
+     */
+    public function __construct() {
+        $this->enabledTemplates = array();
+        $this->enabledPages = array();
+        $this->enabledFields = array();
+    }
+
+
+    /**
+     * Initialize the module
+     *
+     */
+    public function init() {
+
+    }
+
+    public function ready() {
+        // we're interested in page editor only
+        if(wire('page')->process != 'ProcessPageEdit') return;
+
+        // skip changing templates (only target the actual edit form)
+        $id = (int)$this->input->get->id;
+        if(!$id) return;
+
+        // wire('page') would be the page with ProcessPageEdit
+        // GET parameter id tells the page that's being edited
+        $this->editedPage = wire('pages')->get($id);
+
+        foreach(explode("|",$this->editedPage->parents) as $parent){
+            $parentEnabled = in_array($parent, $this->data['enabledPages']) ? true : false;
+        }
+
+        if((count($this->data['enabledTemplates']) == 0 || in_array($this->editedPage->template->name, $this->data['enabledTemplates'])) &&
+        (count($this->data['enabledPages']) == 0 || in_array($this->editedPage->id, $this->data['enabledPages'])) || $parentEnabled) {
+            //$this->pages->addHookBefore('InputfieldFile::fileAdded', $this, 'customRenameUploads');
+            $this->addHookBefore('Pagefile::setFilename', $this, 'customRenameUploads');
+        }
+    }
+
+
+
+    public function customRenameUploads(HookEvent $event) {
+
+        //$file_name = $event->object;
+        $filename = $event->arguments(0);
+        $pageid = $event->object->page->id;
+        $fieldid = $event->object->field->id;
+
+        if(count($this->data['enabledFields']) != 0 && !in_array($fieldid, $this->data['enabledFields'])) return; //if fields set and this is not a selected field
+
+        //the basename check determines whether the path needs adding to the filename or not. The original image doesn't have the path, but the thumbnail does.
+        //So if it is the thumbnail, we just return as we don't need to rename it again
+        if(basename($filename) == $filename) {
+            //$filename = $this->config->paths->files . ($this->config->pagefileSecure ? $this->config->pagefileSecurePathPrefix : null) . $pageid . '/' . $filename;
+            $filename = $this->pages->get("$pageid")->filesManager()->path() . $filename;
+        }
+        else{
+            return;
+        }
+
+        if(strpos($filename, '://')) return; // don't attempt to rename http-based files
+
+        $newFilename = $this->createNewFilename($filename, $this->filenameFormat, $pageid);
+
+        if(file_exists($filename)) rename($filename, $newFilename);
+        $event->setArgument(0, $newFilename); // update the argument to the install function
+
+    }
+
+    /**
+     * Generate the new filename based on the user set config options
+     *
+     */
+    public function createNewFilename($filename, $newname, $pageid){
+        $n = 0;
+        $path_parts = pathinfo($filename);
+        $page = $this->pages->get($pageid);
+
+        $newname = $this->sanitizer->pageName(eval('return "'.$newname.'";'), true);
+        if($newname == '') $newname = 'missing-filename-format-in-custom-upload-names-module-config';
+
+        //this check is because the Pagefile::setFilename hook triggers also on page save and so this prevents renaming if new name matches existing filename
+        //preg removes -n and works for up to -999 extension.
+        //maybe not a perfect approach but allows for prefix-pageid-n since pageid's are 4 numbers and won't match those nor those without n extension at all
+        //also includes a check to ignore filenames containing "video-" to make this compatible with the video thumbnail grabber module - this is ugly and not reliable - how else?
+        if(preg_replace("/-\d{1,3}$/", "", $path_parts['filename']) == $newname || strpos($path_parts['filename'], 'video-') !== false){
+            return $filename;
+        }
+        else{
+            do {
+                $finalFilename = $path_parts['dirname'] . '/' . $newname . ($n === 0 ? '' : '-' . $n) .  '.' . $path_parts['extension'];
+                $n++;
+            } while(file_exists($finalFilename));
+
+            return $finalFilename;
+        }
+    }
+
+
+    /**
+     * Get any inputfields used for configuration of this Fieldtype.
+     *
+     * This is in addition to any configuration fields supplied by the parent Inputfield.
+     *
+     * @param Field $field
+     * @return InputfieldWrapper
+     *
+     */
+    public static function getModuleConfigInputfields(array $data) {
+
+        $modules = wire('modules');
+
+        foreach(self::$configDefaults as $key => $value) {
+            if(!isset($data[$key]) || $data[$key]=='') $data[$key] = $value;
+        }
+
+        $inputfields = new InputfieldWrapper();
+
+        $f = $modules->get("InputfieldAsmSelect");
+        $f->attr('name', 'enabledFields');
+        $f->attr('value', $data["enabledFields"]);
+        $f->label = __('Enabled Fields');
+        $f->description = __('File/image renaming will only work for the selected fields. If no fields are chosen, it will work on all file and image fields.');
+        $f->setAsmSelectOption('sortable', false);
+        // populate with all available fields
+        foreach(wire('fields') as $fieldoption) {
+            // filter out incompatible field types
+            if($fieldoption->type instanceof FieldtypeImage || $fieldoption->type instanceof FieldtypeFile)  $f->addOption($fieldoption->id, $fieldoption->name);
+        }
+        if(isset($data['enabledFields'])) $f->value = $data['enabledFields'];
+        $f->notes = __("This dropdown select list is limited to file and image fields.");
+        $inputfields->add($f);
+
+
+        $fieldEnabledTemplates = wire('modules')->get('InputfieldAsmSelect');
+        $fieldEnabledTemplates->attr('name+id', 'enabledTemplates');
+        $fieldEnabledTemplates->label = __('Enabled Templates', __FILE__);
+        $fieldEnabledTemplates->description = __('File/image renaming will only work for the selected templates. If no templates are chosen, it will work on all templates.', __FILE__);
+        //$fieldEnabledTemplates->attr('title', __('Enable template', __FILE__));
+        $fieldEnabledTemplates->setAsmSelectOption('sortable', false);
+        // populate with all available templates
+        foreach(wire('templates') as $t) {
+            // filter out system templates
+            if(!($t->flags & Template::flagSystem)) $fieldEnabledTemplates->addOption($t->name);
+        }
+        if(isset($data['enabledTemplates'])) $fieldEnabledTemplates->value = $data['enabledTemplates'];
+        $inputfields->add($fieldEnabledTemplates);
+
+
+        $fieldEnabledPages = wire('modules')->get('InputfieldPageListSelectMultiple');
+        $fieldEnabledPages->attr('name+id', 'enabledPages');
+        $fieldEnabledPages->label = __('Enabled Pages', __FILE__);
+        $fieldEnabledPages->description = __('File/image renaming will only work for the selected pages and their children. If no pages are chosen, it will work for all pages, except admin pages.', __FILE__);
+        $fieldEnabledPages->attr('title', __('Enable page', __FILE__));
+        if(isset($data['enabledPages'])) $fieldEnabledPages->value = $data['enabledPages'];
+        $inputfields->add($fieldEnabledPages);
+
+
+        $f = $modules->get("InputfieldText");
+        $f->attr('name', 'filenameFormat');
+        $f->attr('value', $data["filenameFormat"]);
+        $f->attr('size', 70);
+        $f->label = __('Filename Format');
+        $f->description = __("Format that you want to use for the filename.\n".'You can use plain text and the $page variable, eg. mysite-{$page->path}-{$page->id}');
+        $f->notes = __("WARNING: If you change this format, existing images embedded in RTE fields may no longer work after the page undergoes new edits.");
+        $inputfields->add($f);
+
+
+
+        return $inputfields;
+
+    }
+
+}
