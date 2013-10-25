@@ -1,4 +1,4 @@
-CustomUploadNames
-=================
+Rename Uploads
+==============
 
-ProcessWire module to automatically rename file (including image) uploads according to a configurable format
+Processwire module for automatically renaming file (and image) uploads according to a configurable format

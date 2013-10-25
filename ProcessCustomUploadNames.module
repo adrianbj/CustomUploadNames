@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 1,
+            'version' => 2,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
             'autoload' => true,
@@ -34,40 +34,30 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
     }
 
 
-    protected static $configDefaults = array(
-        // global
-        "enabledFields" => "",
-        "enabledPages" => "",
-        "enabledTemplates" => "",
-        "filenameFormat" => ""
-    );
-
-
-    /**
-     * Data as used by the get/set functions
+   /**
+     * Default configuration for module
      *
      */
-    protected $data = array();
-
+    static public function getDefaultData() {
+            return array(
+                "enabledFields" => "",
+                "enabledPages" => "",
+                "enabledTemplates" => "",
+                "filenameFormat" => "",
+                "fileExtensions" => ""
+            );
+    }
 
     /**
-     * __construct() is the right place to init config vars before they'll get populated
+     * Populate the default config data
      *
      */
     public function __construct() {
-        $this->enabledTemplates = array();
-        $this->enabledPages = array();
-        $this->enabledFields = array();
+       foreach(self::getDefaultData() as $key => $value) {
+               $this->$key = $value;
+       }
     }
 
-
-    /**
-     * Initialize the module
-     *
-     */
-    public function init() {
-
-    }
 
     public function ready() {
         // we're interested in page editor only
@@ -81,15 +71,8 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
         // GET parameter id tells the page that's being edited
         $this->editedPage = wire('pages')->get($id);
 
-        foreach(explode("|",$this->editedPage->parents) as $parent){
-            $parentEnabled = in_array($parent, $this->data['enabledPages']) ? true : false;
-        }
+        $this->addHookBefore('Pagefile::setFilename', $this, 'customRenameUploads');
 
-        if((count($this->data['enabledTemplates']) == 0 || in_array($this->editedPage->template->name, $this->data['enabledTemplates'])) &&
-        (count($this->data['enabledPages']) == 0 || in_array($this->editedPage->id, $this->data['enabledPages'])) || $parentEnabled) {
-            //$this->pages->addHookBefore('InputfieldFile::fileAdded', $this, 'customRenameUploads');
-            $this->addHookBefore('Pagefile::setFilename', $this, 'customRenameUploads');
-        }
     }
 
 
@@ -101,24 +84,41 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
         $pageid = $event->object->page->id;
         $fieldid = $event->object->field->id;
 
-        if(count($this->data['enabledFields']) != 0 && !in_array($fieldid, $this->data['enabledFields'])) return; //if fields set and this is not a selected field
+        // ruleData is a json string that we need to turn into an object
+        $rules = json_decode($this->ruleData);
 
-        //the basename check determines whether the path needs adding to the filename or not. The original image doesn't have the path, but the thumbnail does.
-        //So if it is the thumbnail, we just return as we don't need to rename it again
-        if(basename($filename) == $filename) {
-            //$filename = $this->config->paths->files . ($this->config->pagefileSecure ? $this->config->pagefileSecurePathPrefix : null) . $pageid . '/' . $filename;
-            $filename = $this->pages->get("$pageid")->filesManager()->path() . $filename;
+        // Iterate through each of the rename rules
+        foreach ($rules as $rule) {
+
+            foreach(explode("|",$this->editedPage->parents) as $parent){
+                $parentEnabled = in_array($parent, $rule->enabledPages) || in_array(1, $rule->enabledPages) ? true : false;
+            }
+
+            if((count($rule->enabledTemplates) != 0 && !in_array($this->editedPage->template->id, $rule->enabledTemplates))) continue;
+
+            if($rule->enabledPages[0] != '' && !in_array($this->editedPage->id, $rule->enabledPages) && !$parentEnabled) continue;
+
+            if(count($rule->enabledFields) != 0 && !in_array($fieldid, $rule->enabledFields)) continue; //if fields set and this is not a selected field
+
+            if($rule->fileExtensions != '' && !in_array(pathinfo($filename, PATHINFO_EXTENSION), explode(",", trim(str_replace(', ',',',$rule->fileExtensions))))) continue; //if fileExtensions is set and the uploaded file does not match
+
+            //the basename check determines whether the path needs adding to the filename or not. The original image doesn't have the path, but the thumbnail does.
+            //So if it is the thumbnail, we just return as we don't need to rename it again
+            if(basename($filename) == $filename) {
+                //$filename = $this->config->paths->files . ($this->config->pagefileSecure ? $this->config->pagefileSecurePathPrefix : null) . $pageid . '/' . $filename;
+                $filename = $this->pages->get("$pageid")->filesManager()->path() . $filename;
+            }
+            else{
+                continue;
+            }
+
+            if(strpos($filename, '://')) continue; // don't attempt to rename http-based files
+
+            $newFilename = $this->createNewFilename($filename, $rule->filenameFormat, $pageid);
+
+            if(file_exists($filename)) rename($filename, $newFilename);
+            $event->setArgument(0, $newFilename); // update the argument to the install function
         }
-        else{
-            return;
-        }
-
-        if(strpos($filename, '://')) return; // don't attempt to rename http-based files
-
-        $newFilename = $this->createNewFilename($filename, $this->filenameFormat, $pageid);
-
-        if(file_exists($filename)) rename($filename, $newFilename);
-        $event->setArgument(0, $newFilename); // update the argument to the install function
 
     }
 
@@ -152,78 +152,213 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
     }
 
 
+
+    static public function getModuleConfigInputfields(array $data) {
+
+            // this is a container for fields, basically like a fieldset
+            $fields = new InputfieldWrapper();
+
+            // Populate $data with the default config, because if they've never configured this module before,
+            // the $data provided to this function will be empty. Or, if you add new config items in a new version,
+            // $data won't have it until they configure it. Best bet is to merge defaults with custom, where
+            // custom overwrites the defaults (array_merge).
+
+            $data = array_merge(self::getDefaultData(), $data);
+
+            // Populate the $fieldsModel with data for each field
+            $fieldsModel = array(
+                    'enabledFields' => array(
+                                    'label' => "Enabled Fields",
+                                    'desc' => "If no fields are chosen, renaming will be applied to all file and image fields.",
+                                    'type' => "_createInputfieldAsmSelect",
+                                    'options' => "",
+                                    'notes' => "",
+                                    'fieldset'=>'renameRules',
+                                    'fieldsetname'=>'Rename Rules',
+                                    'fieldsetdescription'=>'Add as many different rules as you need.',
+                                    'width' => 20),
+                    'enabledTemplates' => array(
+                                    'label'=>"Enabled Templates",
+                                    'desc'=>"If no templates are chosen, renaming will be applied to all templates.",
+                                    'type'=>"_createInputfieldAsmSelect",
+                                    'options' => "",
+                                    'notes' => "",
+                                    'fieldset'=>'renameRules',
+                                    'width'=>20),
+                    'enabledPages' => array(
+                                    'label'=>"Enabled Pages",
+                                    'desc'=>"AND THEIR CHILDREN. If no pages are chosen, renaming will be applied to all pages, except admin pages.",
+                                    'type'=>"_createInputfieldPageListSelectMultiple",
+                                    'options' => "",
+                                    'notes' => "",
+                                    'fieldset'=>'renameRules',
+                                    'width'=>20),
+                    'fileExtensions' => array(
+                                    'label'=>"File Extensions",
+                                    'desc'=>"Comma separated list of file extensions that you want to apply this rule to. If none are entered renaming will be applied to all extensions.",
+                                    'type'=>"_createInputfieldText",
+                                    'options' => "",
+                                    'notes' => "",
+                                    'fieldset'=>'renameRules',
+                                    'width'=>20),
+                    'filenameFormat' => array(
+                                    'label'=>"Filename Format",
+                                    'desc'=>'Format for the filename. You can use plain text and the $page variable, eg. mysite-{$page->path}',
+                                    'type'=>"_createInputfieldText",
+                                    'options' => "",
+                                    'notes' => "",
+                                    'fieldset'=>'renameRules',
+                                    'width'=>20),
+                    'ruleData' => array(
+                                    'label'=>"Rule Data",
+                                    'desc'=>"JSON string of the rule data",
+                                    'type'=>"_createInputfieldHidden",
+                                    'options' => "",
+                                    'notes' => "")
+            );
+            // Now use $data and $fieldsModel loop to create all fields
+            $fieldset = '';
+
+            foreach ($fieldsModel as $f=>$fM){
+                    $fM['width'] = isset($fM['width']) ? $fM['width'] : 100;
+                    if (isset($fM['fieldset'])) {
+                            if ($fM['fieldset'] != $fieldset) {
+                                    $fieldset = $fM['fieldset'];
+                                    ${$fM['fieldset']} = wire('modules')->get("InputfieldFieldset");
+                                    ${$fM['fieldset']}->label = $fM['fieldsetname'];
+                                    ${$fM['fieldset']}->description = $fM['fieldsetdescription'];
+                                    ${$fM['fieldset']}->id = str_replace(' ', '', $fM['fieldsetname']);
+                                    ${$fM['fieldset']}->set('collapsed', Inputfield::collapsedNo);
+                            }
+                            // For Jquery to work we want all rename rules fields in a wrapper of their own, so skip adding the field here
+                            if ($fM['fieldset'] != 'renameRules') {
+                                    ${$fM['fieldset']}->add(
+                                            self::$fM['type']($f, $fM['label'], $data[$f], $fM['desc'], $fM['options'], $fM['notes'], $fM['width'])
+                                    );
+                            }
+                            $fields->add(${$fM['fieldset']});
+                    } else {
+                            $fields->add(
+                                    self::$fM['type']($f, $fM['label'], $data[$f], $fM['desc'], $fM['options'], $fM['notes'], $fM['width'])
+                            );
+                    }
+            }
+
+            $data['renameRules'] = !empty($data['ruleData']) ? json_decode($data['ruleData'], true) : array(0 => array('enabledFields' => '', 'enabledTemplates' => '', 'enabledPages' => '', 'fileExtensions' => '', 'filenameFormat' => ''));
+            // If we have more rules stored then load extra rows
+            //print_r($data['renameRules']);
+            if (!empty($data['renameRules'])) {
+                    foreach ($data['renameRules'] as $k => $rule) {
+                            $rulewrapper = new InputfieldWrapper();
+                            $rulewrapper->add(self::_createInputfieldAsmSelect('enabledFields', 'Enabled Fields', $rule['enabledFields'], $fieldsModel['enabledFields']['desc'], '', '', 20, $k));
+                            $rulewrapper->add(self::_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates', $rule['enabledTemplates'], $fieldsModel['enabledTemplates']['desc'], '', '', 20, $k));
+                            $rulewrapper->add(self::_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages', $rule['enabledPages'], $fieldsModel['enabledPages']['desc'], '', '', 20, $k));
+                            $rulewrapper->add(self::_createInputfieldText('fileExtensions', 'File Extensions', $rule['fileExtensions'], $fieldsModel['fileExtensions']['desc'], '', '', 20));
+                            $rulewrapper->add(self::_createInputfieldText('filenameFormat', 'Filename Format', $rule['filenameFormat'], $fieldsModel['filenameFormat']['desc'], '', '', 20));
+
+                            $renameRules->add($rulewrapper);
+                    }
+            } else {
+
+            }
+            return $fields;
+    }
+
     /**
-     * Get any inputfields used for configuration of this Fieldtype.
-     *
-     * This is in addition to any configuration fields supplied by the parent Inputfield.
-     *
-     * @param Field $field
-     * @return InputfieldWrapper
-     *
+     * Initialize the module
      */
-    public static function getModuleConfigInputfields(array $data) {
+    public function init() {
 
-        $modules = wire('modules');
+            // Check for AJAX request and process as appropriate
+            if($this->config->ajax) {
+                    if ($this->input->get->addRule) {
+                            $this->addRule($this->input->get->addRule);
+                    }
+            }
 
-        foreach(self::$configDefaults as $key => $value) {
-            if(!isset($data[$key]) || $data[$key]=='') $data[$key] = $value;
-        }
+            // Load jQuery Core if not a post request
+            if(!$this->isPost) $this->modules->get('JqueryCore');
 
-        $inputfields = new InputfieldWrapper();
+            // Initialize the module
+            parent::init();
+    }
 
-        $f = $modules->get("InputfieldAsmSelect");
-        $f->attr('name', 'enabledFields');
-        $f->attr('value', $data["enabledFields"]);
-        $f->label = __('Enabled Fields');
-        $f->description = __('File/image renaming will only work for the selected fields. If no fields are chosen, it will work on all file and image fields.');
-        $f->setAsmSelectOption('sortable', false);
-        // populate with all available fields
-        foreach(wire('fields') as $fieldoption) {
-            // filter out incompatible field types
-            if($fieldoption->type instanceof FieldtypeImage || $fieldoption->type instanceof FieldtypeFile)  $f->addOption($fieldoption->id, $fieldoption->name);
-        }
-        if(isset($data['enabledFields'])) $f->value = $data['enabledFields'];
-        $f->notes = __("This dropdown select list is limited to file and image fields.");
-        $inputfields->add($f);
+    public function addRule($id) {
+            $fields = new InputfieldWrapper();
+            $fields->add($this->_createInputfieldAsmSelect('enabledFields', 'Enabled Fields #' . ($id+1), '', 'If no fields are chosen, renaming will be applied to all file and image fields.', '', '', 20, $id));
+            $fields->add($this->_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates #' . ($id+1), '', 'If no templates are chosen, renaming will be applied to all templates.', '', '', 20, $id));
+            $fields->add($this->_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages #' . ($id+1), '', 'AND THEIR CHILDREN If no pages are chosen, renaming will be applied to all pages, except admin pages.', '', '', 20, $id));
+            $fields->add($this->_createInputfieldText('fileExtensions', 'File Extensions #' . ($id+1), '', 'Comma separated list of file extensions that you want to apply this rule to. If none are entered renaming will be applies to all extensions.', '', '', 20));
+            $fields->add($this->_createInputfieldText('filenameFormat', 'Filename Format #' . ($id+1), '', 'Format for the filename. You can use plain text and the $page variable, eg. mysite-{$page->path}', '', '', 20));
+            echo $fields->render();
+            exit;
+    }
+
+    private static function _createInputfieldText($ipName, $ipTitle, $ipValue='', $ipDesc='', $ipOptions='', $ipNotes='', $ipWidth){
+            $field =  wire('modules')->get("InputfieldText");
+            $field->name = $ipName;
+            $field->label = $ipTitle;
+            $field->required = false;
+            $field->description = $ipDesc;
+            $field->attr('value', $ipValue);
+            $field->attr('notes', $ipNotes);
+            $field->columnWidth = $ipWidth;
+            return $field;
+    }
+
+    private static function _createInputfieldAsmSelect($aName, $aTitle, $aValue, $aDesc='', $aOptions='', $aNotes='', $aWidth=100, $aID=1) {
+            //if(!isset($aValue) || !is_array($aValue)) $aValue = '';
+            $modules = Wire::getFuel('modules');
+            $field = $modules->get("InputfieldAsmSelect");
+            $field->attr('name', $aName);
+            if($aName == 'enabledFields'){
+                foreach(wire('fields') as $currfield) {
+                    if($currfield->flags & Field::flagSystem) continue;
+                    if($currfield->type instanceof FieldtypeImage || $currfield->type instanceof FieldtypeFile) $field->addOption($currfield->id, $currfield->name);
+                }
+            }
+            if($aName == 'enabledTemplates'){
+                foreach(wire('templates') as $currtemplate) {
+                    if($currtemplate->flags & Template::flagSystem) continue;
+                    $field->addOption($currtemplate->id, $currtemplate->name);
+                }
+            }
+            $field->attr('value', $aValue);
+            //$field->attr('id', $aName . $aID); // Allows us to add more of these with different IDs via AJAX
+            $field->label = $aTitle;
+            $field->description = $aDesc;
+            $field->columnWidth = $aWidth;
+            return $field;
+    }
 
 
-        $fieldEnabledTemplates = wire('modules')->get('InputfieldAsmSelect');
-        $fieldEnabledTemplates->attr('name+id', 'enabledTemplates');
-        $fieldEnabledTemplates->label = __('Enabled Templates', __FILE__);
-        $fieldEnabledTemplates->description = __('File/image renaming will only work for the selected templates. If no templates are chosen, it will work on all templates.', __FILE__);
-        //$fieldEnabledTemplates->attr('title', __('Enable template', __FILE__));
-        $fieldEnabledTemplates->setAsmSelectOption('sortable', false);
-        // populate with all available templates
-        foreach(wire('templates') as $t) {
-            // filter out system templates
-            if(!($t->flags & Template::flagSystem)) $fieldEnabledTemplates->addOption($t->name);
-        }
-        if(isset($data['enabledTemplates'])) $fieldEnabledTemplates->value = $data['enabledTemplates'];
-        $inputfields->add($fieldEnabledTemplates);
+    private static function _createInputfieldPageListSelectMultiple($ipName, $ipTitle, $ipValue='', $ipDesc='', $ipOptions='', $ipNotes='', $ipWidth=100, $ipID=1){
+            $field =  wire('modules')->get("InputfieldPageListSelectMultiple");
+            $field->name = $ipName;
+            $field->label = $ipTitle;
+            $field->required = false;
+            $field->description = $ipDesc;
+            $field->attr('value', $ipValue);
+            $field->attr('id', $ipName . $ipID); // Allows us to add more of these with different IDs via AJAX
+            $field->set('unselectLabel', 'Unselect');
+            $field->columnWidth = $ipWidth;
+            if($ipValue == 0) $field->collapsed = Inputfield::collapsedNo;
+            return $field;
+    }
 
+    private static function _createInputfieldHidden($tName, $tTitle, $tValue, $tDesc='', $ipOptions=''){
+            $field = wire('modules')->get("InputfieldHidden");
+            $field->name = $tName;
+            $field->label = $tTitle;
+            $field->description = $tDesc;
+            $field->attr('value', $tValue);
+            return $field;
+    }
 
-        $fieldEnabledPages = wire('modules')->get('InputfieldPageListSelectMultiple');
-        $fieldEnabledPages->attr('name+id', 'enabledPages');
-        $fieldEnabledPages->label = __('Enabled Pages', __FILE__);
-        $fieldEnabledPages->description = __('File/image renaming will only work for the selected pages and their children. If no pages are chosen, it will work for all pages, except admin pages.', __FILE__);
-        $fieldEnabledPages->attr('title', __('Enable page', __FILE__));
-        if(isset($data['enabledPages'])) $fieldEnabledPages->value = $data['enabledPages'];
-        $inputfields->add($fieldEnabledPages);
-
-
-        $f = $modules->get("InputfieldText");
-        $f->attr('name', 'filenameFormat');
-        $f->attr('value', $data["filenameFormat"]);
-        $f->attr('size', 70);
-        $f->label = __('Filename Format');
-        $f->description = __("Format that you want to use for the filename.\n".'You can use plain text and the $page variable, eg. mysite-{$page->path}-{$page->id}');
-        $f->notes = __("WARNING: If you change this format, existing images embedded in RTE fields may no longer work after the page undergoes new edits.");
-        $inputfields->add($f);
-
-
-
-        return $inputfields;
-
+    public function ___install() {
+            $data = array();
+            $module = 'ProcessCustomUploadNames';
+            wire('modules')->saveModuleConfigData($module, $data);
     }
 
 }
