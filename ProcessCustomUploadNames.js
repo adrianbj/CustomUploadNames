@@ -59,7 +59,7 @@ $(document).ready(function() {
 });
 
 
-// Gets the number of elements in an object (easier for arrays of course, but we're dealing with an object)
+// Gets the number of elements in an object. This is for older browsers. In newer ones you can just do: Object.keys(obj.Data).length
 var getObjectSize = function(obj) {
     var len = 0, key;
     for (key in obj) {
