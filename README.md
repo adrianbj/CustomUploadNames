@@ -12,9 +12,7 @@ The module config allows you to set an unlimited number of Rename Rules. They ar
 
 You can define rules to specific fields, templates, pages, and file extensions.
 
-The Filename Format can be defined using plain text and PW $page variable, for example:
-
-``` mysite-{$page->path} ```
+The Filename Format can be defined using plain text and PW $page variable, for example: mysite-{$page->path}
 
 
 ###Acknowledgments
