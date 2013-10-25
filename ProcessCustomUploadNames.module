@@ -175,7 +175,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                                     'notes' => "",
                                     'fieldset'=>'renameRules',
                                     'fieldsetname'=>'Rename Rules',
-                                    'fieldsetdescription'=>'Add as many different rules as you need.',
+                                    'fieldsetdescription'=>'Add as many different rules as you need. They are processed in order, so put more specific rules before more general ones.',
                                     'width' => 20),
                     'enabledTemplates' => array(
                                     'label'=>"Enabled Templates",
