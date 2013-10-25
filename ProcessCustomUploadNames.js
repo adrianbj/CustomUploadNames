@@ -53,15 +53,6 @@ $(document).ready(function() {
 			} else {
 				$('#Inputfield_ruleData').val('');
 			}
-
-			// Abandoned as if I preventDefault and submit via ajax then no other values get saved :( Left for future perusal
-			/*$.ajax({
-				url:'?saveCategories=' + stringJSON,
-				success:function(result)
-				{
-					 $('#ModuleEditForm').submit();
-				}
-			});*/
 		}
 	});
 
