@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 2,
+            'version' => 3,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
             'autoload' => true,
@@ -71,7 +71,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
         // GET parameter id tells the page that's being edited
         $this->editedPage = wire('pages')->get($id);
 
-        $this->addHookBefore('Pagefile::setFilename', $this, 'customRenameUploads');
+        $this->addHookBefore('InputfieldFile::processInputAddFile', $this, 'customRenameUploads');
 
     }
 
@@ -79,9 +79,8 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
 
     public function customRenameUploads(HookEvent $event) {
 
-        //$file_name = $event->object;
         $filename = $event->arguments(0);
-        $pageid = $event->object->page->id;
+        $pageid = $this->input->get->id;
         $fieldid = $event->object->field->id;
 
         // ruleData is a json string that we need to turn into an object
@@ -105,7 +104,6 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
             //the basename check determines whether the path needs adding to the filename or not. The original image doesn't have the path, but the thumbnail does.
             //So if it is the thumbnail, we just return as we don't need to rename it again
             if(basename($filename) == $filename) {
-                //$filename = $this->config->paths->files . ($this->config->pagefileSecure ? $this->config->pagefileSecurePathPrefix : null) . $pageid . '/' . $filename;
                 $filename = $this->pages->get("$pageid")->filesManager()->path() . $filename;
             }
             else{
@@ -134,21 +132,13 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
         $newname = $this->sanitizer->pageName(eval('return "'.$newname.'";'), true);
         if($newname == '') $newname = 'missing-filename-format-in-custom-upload-names-module-config';
 
-        //this check is because the Pagefile::setFilename hook triggers also on page save and so this prevents renaming if new name matches existing filename
-        //preg removes -n and works for up to -999 extension.
-        //maybe not a perfect approach but allows for prefix-pageid-n since pageid's are 4 numbers and won't match those nor those without n extension at all
-        //also includes a check to ignore filenames containing "video-" to make this compatible with the video thumbnail grabber module - this is ugly and not reliable - how else?
-        if(preg_replace("/-\d{1,3}$/", "", $path_parts['filename']) == $newname || strpos($path_parts['filename'], 'video-') !== false){
-            return $filename;
-        }
-        else{
-            do {
-                $finalFilename = $path_parts['dirname'] . '/' . $newname . ($n === 0 ? '' : '-' . $n) .  '.' . $path_parts['extension'];
-                $n++;
-            } while(file_exists($finalFilename));
+        do {
+            $finalFilename = $path_parts['dirname'] . '/' . $newname . ($n === 0 ? '' : '-' . $n) .  '.' . $path_parts['extension'];
+            $n++;
+        } while(file_exists($finalFilename));
 
-            return $finalFilename;
-        }
+        return $finalFilename;
+
     }
 
 
@@ -187,7 +177,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                                     'width'=>20),
                     'enabledPages' => array(
                                     'label'=>"Enabled Pages",
-                                    'desc'=>"AND THEIR CHILDREN. If no pages are chosen, renaming will be applied to all pages, except admin pages.",
+                                    'desc'=>"AND THEIR CHILDREN. If no pages are chosen, renaming will be applied to all pages.",
                                     'type'=>"_createInputfieldPageListSelectMultiple",
                                     'options' => "",
                                     'notes' => "",
@@ -246,7 +236,6 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
 
             $data['renameRules'] = !empty($data['ruleData']) ? json_decode($data['ruleData'], true) : array(0 => array('enabledFields' => '', 'enabledTemplates' => '', 'enabledPages' => '', 'fileExtensions' => '', 'filenameFormat' => ''));
             // If we have more rules stored then load extra rows
-            //print_r($data['renameRules']);
             if (!empty($data['renameRules'])) {
                     foreach ($data['renameRules'] as $k => $rule) {
                             $rulewrapper = new InputfieldWrapper();
@@ -287,7 +276,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
             $fields = new InputfieldWrapper();
             $fields->add($this->_createInputfieldAsmSelect('enabledFields', 'Enabled Fields #' . ($id+1), '', 'If no fields are chosen, renaming will be applied to all file and image fields.', '', '', 20, $id));
             $fields->add($this->_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates #' . ($id+1), '', 'If no templates are chosen, renaming will be applied to all templates.', '', '', 20, $id));
-            $fields->add($this->_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages #' . ($id+1), '', 'AND THEIR CHILDREN If no pages are chosen, renaming will be applied to all pages, except admin pages.', '', '', 20, $id));
+            $fields->add($this->_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages #' . ($id+1), '', 'AND THEIR CHILDREN If no pages are chosen, renaming will be applied to all pages.', '', '', 20, $id));
             $fields->add($this->_createInputfieldText('fileExtensions', 'File Extensions #' . ($id+1), '', 'Comma separated list of file extensions that you want to apply this rule to. If none are entered renaming will be applies to all extensions.', '', '', 20));
             $fields->add($this->_createInputfieldText('filenameFormat', 'Filename Format #' . ($id+1), '', 'Format for the filename. You can use plain text and the $page variable, eg. mysite-{$page->path}', '', '', 20));
             echo $fields->render();
