@@ -3,10 +3,7 @@ Rename Uploads
 
 ProcessWire module to automatically rename file (including image) uploads according to a configurable format
 
-###NOTE: This module is still in alpha status so please don't use in production. 
-
 ####It requires the lates dev version of PW (19th Oct 2013)
-####You currently also have to make Pagefile::setFilename hookable.
 
 ###Renaming Rules
 The module config allows you to set an unlimited number of Rename Rules. They are processed in order, so you should put more specific rules before more general ones.
