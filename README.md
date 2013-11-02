@@ -14,3 +14,6 @@ The Filename Format can be defined using plain text and PW $page variable, for e
 ###Acknowledgments
 The module config settings make use of code from Pete's EmailToPage module and the renaming function is based on this code from Ryan:
 http://processwire.com/talk/topic/3299-ability-to-define-convention-for-image-and-file-upload-names/?p=32623
+
+####Support forum:
+http://processwire.com/talk/topic/4865-custom-upload-names/
