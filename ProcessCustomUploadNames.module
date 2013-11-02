@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 3,
+            'version' => 4,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
             'autoload' => true,
@@ -81,7 +81,8 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
 
         $filename = $event->arguments(0);
         $pageid = $this->input->get->id;
-        $fieldid = $event->object->field->id;
+        $field = $event->object;
+        $fieldid = $this->fields->get($field->name)->id;
 
         // ruleData is a json string that we need to turn into an object
         $rules = json_decode($this->ruleData);
