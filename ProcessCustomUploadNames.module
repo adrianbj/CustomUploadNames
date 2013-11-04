@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 4,
+            'version' => 5,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
             'autoload' => true,
@@ -44,7 +44,8 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                 "enabledPages" => "",
                 "enabledTemplates" => "",
                 "filenameFormat" => "",
-                "fileExtensions" => ""
+                "fileExtensions" => "",
+                "filenameLength" => ""
             );
     }
 
@@ -113,7 +114,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
 
             if(strpos($filename, '://')) continue; // don't attempt to rename http-based files
 
-            $newFilename = $this->createNewFilename($filename, $rule->filenameFormat, $pageid);
+            $newFilename = $this->createNewFilename($filename, $rule->filenameFormat, $rule->filenameLength, $pageid);
 
             if(file_exists($filename)) rename($filename, $newFilename);
             $event->setArgument(0, $newFilename); // update the argument to the install function
@@ -125,12 +126,17 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
      * Generate the new filename based on the user set config options
      *
      */
-    public function createNewFilename($filename, $newname, $pageid){
+    public function createNewFilename($filename, $newname, $filenameLength, $pageid){
         $n = 0;
         $path_parts = pathinfo($filename);
         $page = $this->pages->get($pageid);
 
+        //$newname = $this->sanitizer->pageName(eval($newname), true);
         $newname = $this->sanitizer->pageName(eval('return "'.$newname.'";'), true);
+        //$newname = $this->sanitizer->pageName(eval("return $newname;"), true);
+
+        if($filenameLength != '') $newname = $this->truncate($newname, $filenameLength);
+
         if($newname == '') $newname = 'missing-filename-format-in-custom-upload-names-module-config';
 
         do {
@@ -167,7 +173,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                                     'fieldset'=>'renameRules',
                                     'fieldsetname'=>'Rename Rules',
                                     'fieldsetdescription'=>'Add as many different rules as you need. They are processed in order, so put more specific rules before more general ones.',
-                                    'width' => 20),
+                                    'width' => 15),
                     'enabledTemplates' => array(
                                     'label'=>"Enabled Templates",
                                     'desc'=>"If no templates are chosen, renaming will be applied to all templates.",
@@ -175,7 +181,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                                     'options' => "",
                                     'notes' => "",
                                     'fieldset'=>'renameRules',
-                                    'width'=>20),
+                                    'width'=>16),
                     'enabledPages' => array(
                                     'label'=>"Enabled Pages",
                                     'desc'=>"AND THEIR CHILDREN. If no pages are chosen, renaming will be applied to all pages.",
@@ -183,7 +189,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                                     'options' => "",
                                     'notes' => "",
                                     'fieldset'=>'renameRules',
-                                    'width'=>20),
+                                    'width'=>17),
                     'fileExtensions' => array(
                                     'label'=>"File Extensions",
                                     'desc'=>"Comma separated list of file extensions that you want to apply this rule to. If none are entered renaming will be applied to all extensions.",
@@ -191,7 +197,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                                     'options' => "",
                                     'notes' => "",
                                     'fieldset'=>'renameRules',
-                                    'width'=>20),
+                                    'width'=>17),
                     'filenameFormat' => array(
                                     'label'=>"Filename Format",
                                     'desc'=>'Format for the filename. You can use plain text and the $page variable, eg. mysite-{$page->path}',
@@ -199,7 +205,15 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                                     'options' => "",
                                     'notes' => "",
                                     'fieldset'=>'renameRules',
-                                    'width'=>20),
+                                    'width'=>25),
+                    'filenameLength' => array(
+                                    'label'=>"Filename Length",
+                                    'desc'=>'Truncate filename to this number of characters (nearest whole word).',
+                                    'type'=>"_createInputfieldText",
+                                    'options' => "",
+                                    'notes' => "",
+                                    'fieldset'=>'renameRules',
+                                    'width'=>10),
                     'ruleData' => array(
                                     'label'=>"Rule Data",
                                     'desc'=>"JSON string of the rule data",
@@ -240,11 +254,12 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
             if (!empty($data['renameRules'])) {
                     foreach ($data['renameRules'] as $k => $rule) {
                             $rulewrapper = new InputfieldWrapper();
-                            $rulewrapper->add(self::_createInputfieldAsmSelect('enabledFields', 'Enabled Fields', $rule['enabledFields'], $fieldsModel['enabledFields']['desc'], '', '', 20, $k));
-                            $rulewrapper->add(self::_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates', $rule['enabledTemplates'], $fieldsModel['enabledTemplates']['desc'], '', '', 20, $k));
-                            $rulewrapper->add(self::_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages', $rule['enabledPages'], $fieldsModel['enabledPages']['desc'], '', '', 20, $k));
-                            $rulewrapper->add(self::_createInputfieldText('fileExtensions', 'File Extensions', $rule['fileExtensions'], $fieldsModel['fileExtensions']['desc'], '', '', 20));
-                            $rulewrapper->add(self::_createInputfieldText('filenameFormat', 'Filename Format', $rule['filenameFormat'], $fieldsModel['filenameFormat']['desc'], '', '', 20));
+                            $rulewrapper->add(self::_createInputfieldAsmSelect('enabledFields', 'Enabled Fields', $rule['enabledFields'], $fieldsModel['enabledFields']['desc'], '', '', 15, $k));
+                            $rulewrapper->add(self::_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates', $rule['enabledTemplates'], $fieldsModel['enabledTemplates']['desc'], '', '', 16, $k));
+                            $rulewrapper->add(self::_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages', $rule['enabledPages'], $fieldsModel['enabledPages']['desc'], '', '', 17, $k));
+                            $rulewrapper->add(self::_createInputfieldText('fileExtensions', 'File Extensions', $rule['fileExtensions'], $fieldsModel['fileExtensions']['desc'], '', '', 17));
+                            $rulewrapper->add(self::_createInputfieldText('filenameFormat', 'Filename Format', $rule['filenameFormat'], $fieldsModel['filenameFormat']['desc'], '', '', 25));
+                            $rulewrapper->add(self::_createInputfieldText('filenameLength', 'Filename Length', $rule['filenameLength'], $fieldsModel['filenameLength']['desc'], '', '', 10));
 
                             $renameRules->add($rulewrapper);
                     }
@@ -275,11 +290,12 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
 
     public function addRule($id) {
             $fields = new InputfieldWrapper();
-            $fields->add($this->_createInputfieldAsmSelect('enabledFields', 'Enabled Fields #' . ($id+1), '', 'If no fields are chosen, renaming will be applied to all file and image fields.', '', '', 20, $id));
-            $fields->add($this->_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates #' . ($id+1), '', 'If no templates are chosen, renaming will be applied to all templates.', '', '', 20, $id));
-            $fields->add($this->_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages #' . ($id+1), '', 'AND THEIR CHILDREN If no pages are chosen, renaming will be applied to all pages.', '', '', 20, $id));
-            $fields->add($this->_createInputfieldText('fileExtensions', 'File Extensions #' . ($id+1), '', 'Comma separated list of file extensions that you want to apply this rule to. If none are entered renaming will be applies to all extensions.', '', '', 20));
-            $fields->add($this->_createInputfieldText('filenameFormat', 'Filename Format #' . ($id+1), '', 'Format for the filename. You can use plain text and the $page variable, eg. mysite-{$page->path}', '', '', 20));
+            $fields->add($this->_createInputfieldAsmSelect('enabledFields', 'Enabled Fields #' . ($id+1), '', 'If no fields are chosen, renaming will be applied to all file and image fields.', '', '', 15, $id));
+            $fields->add($this->_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates #' . ($id+1), '', 'If no templates are chosen, renaming will be applied to all templates.', '', '', 16, $id));
+            $fields->add($this->_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages #' . ($id+1), '', 'AND THEIR CHILDREN If no pages are chosen, renaming will be applied to all pages.', '', '', 17, $id));
+            $fields->add($this->_createInputfieldText('fileExtensions', 'File Extensions #' . ($id+1), '', 'Comma separated list of file extensions that you want to apply this rule to. If none are entered renaming will be applies to all extensions.', '', '', 17));
+            $fields->add($this->_createInputfieldText('filenameFormat', 'Filename Format #' . ($id+1), '', 'Format for the filename. You can use plain text and the $page variable, eg. mysite-{$page->path}', '', '', 25));
+            $fields->add($this->_createInputfieldText('filenameLength', 'Filename Length #' . ($id+1), '', 'Truncate filename to this number of characters (nearest whole word).', '', '', 10));
             echo $fields->render();
             exit;
     }
@@ -343,6 +359,15 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
             $field->description = $tDesc;
             $field->attr('value', $tValue);
             return $field;
+    }
+
+    public function truncate($text, $length){
+        if(strlen($text) > $length){
+            return substr( $text, 0, strrpos( substr( $text, 0, $length), '-' ) );
+        }
+        else{
+            return $text;
+        }
     }
 
     public function ___install() {
