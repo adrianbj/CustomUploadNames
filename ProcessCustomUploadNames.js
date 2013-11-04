@@ -1,14 +1,21 @@
 $(document).ready(function() {
 	// Add an "Add rule" button to the Rename Rules container
 	$('#RenameRules .InputfieldContent:first').append('<button class="ui-button ui-state-default" id="addRule" style="display: block; clear: left;">Add another rule</button>');
+
 	// Handle what happens on click of our new button
-	$('#addRule').live('click', function(e) {
+	var addRule = function(e) {
 		e.preventDefault();
 		$(this).toggleClass('ui-state-active');
-
 		$(this).prev('ul:first').append($('<div>').load('?addRule=' + ($('#RenameRules ul.Inputfields ul.Inputfields').length)));
+	};
 
-	});
+    if ($.isFunction($(document).on)) {
+		$(document).on('click', '#addRule', addRule);
+    }
+    else {
+		$('#addRule').live('click', addRule);
+    }
+
 
 	// Adds the number to each row of rename fields
 	$('#RenameRules ul.Inputfields ul.Inputfields').each(function(i) {
@@ -22,13 +29,17 @@ $(document).ready(function() {
 	var deleteButton = '<li style="float:right"><button class="ui-button ui-state-default deleterow">Delete</button></li>';
 	$("#RenameRules ul.Inputfields ul.Inputfields").append(deleteButton);
 	// Handle click of the delete button
-	$('.deleterow').live('click', function(e) {
+	var deleteRow = function(e){
 		e.preventDefault();
 		$(this).toggleClass('ui-state-active');
-
 		$(this).parent().parent().remove();
+	}
 
-	});
+    if ($.isFunction($(document).on)) {
+	    $(document).on('click', '.deleterow', deleteRow);
+    } else {
+		$('.deleterow').live('click', deleterow);
+	}
 
 	// Takes over from normal submit to store our categories in an array and then submit as normal
 	$('#Inputfield_submit').click(function(e) {

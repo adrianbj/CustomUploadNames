@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 5,
+            'version' => 6,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
             'autoload' => true,
@@ -131,9 +131,11 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
         $path_parts = pathinfo($filename);
         $page = $this->pages->get($pageid);
 
+        // Grab filename format and eval it. I am thinking about ditching the evil eval approach and going with a template style system like I did in the Phone Fieldtype module
+        // The two commented out options allow for full flexibility (the user can use php functions etc, but makes formatting more complicated)
         //$newname = $this->sanitizer->pageName(eval($newname), true);
-        $newname = $this->sanitizer->pageName(eval('return "'.$newname.'";'), true);
         //$newname = $this->sanitizer->pageName(eval("return $newname;"), true);
+        $newname = $this->sanitizer->pageName(eval('return "'.$newname.'";'), true);
 
         if($filenameLength != '') $newname = $this->truncate($newname, $filenameLength);
 
@@ -274,18 +276,18 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
      */
     public function init() {
 
-            // Check for AJAX request and process as appropriate
-            if($this->config->ajax) {
-                    if ($this->input->get->addRule) {
-                            $this->addRule($this->input->get->addRule);
-                    }
-            }
+        // Check for AJAX request and process as appropriate
+        if($this->config->ajax) {
+                if ($this->input->get->addRule) {
+                        $this->addRule($this->input->get->addRule);
+                }
+        }
 
-            // Load jQuery Core if not a post request
-            if(!$this->isPost) $this->modules->get('JqueryCore');
+        // Load jQuery Core if not a post request
+        if(!$this->isPost) $this->modules->get('JqueryCore');
 
-            // Initialize the module
-            parent::init();
+        // Initialize the module
+        parent::init();
     }
 
     public function addRule($id) {
@@ -313,10 +315,10 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
     }
 
     private static function _createInputfieldAsmSelect($aName, $aTitle, $aValue, $aDesc='', $aOptions='', $aNotes='', $aWidth=100, $aID=1) {
-            //if(!isset($aValue) || !is_array($aValue)) $aValue = '';
-            $modules = Wire::getFuel('modules');
-            $field = $modules->get("InputfieldAsmSelect");
-            $field->attr('name', $aName);
+            $field = wire('modules')->get("InputfieldAsmSelect");
+            $field->name = $aName;
+            $field->label = $aTitle;
+            $field->description = $aDesc;
             if($aName == 'enabledFields'){
                 foreach(wire('fields') as $currfield) {
                     if($currfield->flags & Field::flagSystem) continue;
@@ -330,9 +332,6 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                 }
             }
             $field->attr('value', $aValue);
-            //$field->attr('id', $aName . $aID); // Allows us to add more of these with different IDs via AJAX
-            $field->label = $aTitle;
-            $field->description = $aDesc;
             $field->columnWidth = $aWidth;
             return $field;
     }
@@ -342,7 +341,6 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
             $field =  wire('modules')->get("InputfieldPageListSelectMultiple");
             $field->name = $ipName;
             $field->label = $ipTitle;
-            $field->required = false;
             $field->description = $ipDesc;
             $field->attr('value', $ipValue);
             $field->attr('id', $ipName . $ipID); // Allows us to add more of these with different IDs via AJAX
