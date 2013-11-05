@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 6,
+            'version' => 7,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
             'autoload' => true,
@@ -333,6 +333,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
             }
             $field->attr('value', $aValue);
             $field->columnWidth = $aWidth;
+            $field->sortable = false;
             return $field;
     }
 
@@ -346,6 +347,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
             $field->attr('id', $ipName . $ipID); // Allows us to add more of these with different IDs via AJAX
             $field->set('unselectLabel', 'Unselect');
             $field->columnWidth = $ipWidth;
+            $field->sortable = false;
             if($ipValue == 0) $field->collapsed = Inputfield::collapsedNo;
             return $field;
     }
