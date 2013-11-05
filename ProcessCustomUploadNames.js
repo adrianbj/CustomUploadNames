@@ -6,7 +6,13 @@ $(document).ready(function() {
 	var addRule = function(e) {
 		e.preventDefault();
 		$(this).toggleClass('ui-state-active');
-		$(this).prev('ul:first').append($('<div>').load('?addRule=' + ($('#RenameRules ul.Inputfields ul.Inputfields').length)));
+		var newRow = $('<li class="Inputfield InputfieldWrapper InputfieldColumnWidthFirst">').load('?addRule=' + ($('#RenameRules ul.Inputfields ul.Inputfields').length));
+		$(this).prev('ul:first').append(newRow);
+		var options = { sortable: false };
+		// ugly hack to wait for new select fields to be ready before converting them to ASM fields. This seems to work most of the time, but still not 100% ?
+		setTimeout(function(){
+			$(newRow).find(".InputfieldAsmSelect select[multiple=multiple]").asmSelect(options);
+		},100);
 	};
 
     if ($.isFunction($(document).on)) {
