@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 8,
+            'version' => 9,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
             'autoload' => true,
@@ -260,7 +260,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                             $rulewrapper->add(self::_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates', $rule['enabledTemplates'], $fieldsModel['enabledTemplates']['desc'], '', '', 16, $k));
                             $rulewrapper->add(self::_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages', $rule['enabledPages'], $fieldsModel['enabledPages']['desc'], '', '', 17, $k));
                             $rulewrapper->add(self::_createInputfieldText('fileExtensions', 'File Extensions', $rule['fileExtensions'], $fieldsModel['fileExtensions']['desc'], '', '', 17));
-                            $rulewrapper->add(self::_createInputfieldText('filenameFormat', 'Filename Format', $rule['filenameFormat'], $fieldsModel['filenameFormat']['desc'], '', '', 25));
+                            $rulewrapper->add(self::_createInputfieldText('filenameFormat', 'Filename Format', $rule['filenameFormat'], $fieldsModel['filenameFormat']['desc'], '', '', 25, true));
                             $rulewrapper->add(self::_createInputfieldText('filenameLength', 'Filename Length', $rule['filenameLength'], $fieldsModel['filenameLength']['desc'], '', '', 10));
 
                             $renameRules->add($rulewrapper);
@@ -296,17 +296,17 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
             $fields->add($this->_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates #' . ($id+1), '', 'If no templates are chosen, renaming will be applied to all templates.', '', '', 16, $id));
             $fields->add($this->_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages #' . ($id+1), '', 'AND THEIR CHILDREN If no pages are chosen, renaming will be applied to all pages.', '', '', 17, $id));
             $fields->add($this->_createInputfieldText('fileExtensions', 'File Extensions #' . ($id+1), '', 'Comma separated list of file extensions that you want to apply this rule to. If none are entered renaming will be applies to all extensions.', '', '', 17));
-            $fields->add($this->_createInputfieldText('filenameFormat', 'Filename Format #' . ($id+1), '', 'Format for the filename. You can use plain text and the $page variable, eg. mysite-{$page->path}', '', '', 25));
+            $fields->add($this->_createInputfieldText('filenameFormat', 'Filename Format #' . ($id+1), '', 'Format for the filename. You can use plain text and the $page variable, eg. mysite-{$page->path}', '', '', 25, true));
             $fields->add($this->_createInputfieldText('filenameLength', 'Filename Length #' . ($id+1), '', 'Truncate filename to this number of characters (nearest whole word).', '', '', 10));
             echo $fields->render();
             exit;
     }
 
-    private static function _createInputfieldText($ipName, $ipTitle, $ipValue='', $ipDesc='', $ipOptions='', $ipNotes='', $ipWidth){
+    private static function _createInputfieldText($ipName, $ipTitle, $ipValue='', $ipDesc='', $ipOptions='', $ipNotes='', $ipWidth, $ipRequired=false){
             $field =  wire('modules')->get("InputfieldText");
             $field->name = $ipName;
             $field->label = $ipTitle;
-            $field->required = false;
+            $field->required = $ipRequired;
             $field->description = $ipDesc;
             $field->attr('value', $ipValue);
             $field->attr('notes', $ipNotes);
