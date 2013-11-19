@@ -48,7 +48,7 @@ $(document).ready(function() {
 	}
 
 	// Takes over from normal submit to store our categories in an array and then submit as normal
-	$('#Inputfield_submit').click(function(e) {
+	$('#Inputfield_submit_save_module, #Inputfield_submit').click(function(e) {
 		if ($('#RenameRules').length) {
 			// A variable to store the CSV data in
 			var data = new Array();
