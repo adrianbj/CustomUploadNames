@@ -12,7 +12,7 @@ $(document).ready(function() {
 		// ugly hack to wait for new select fields to be ready before converting them to ASM fields. This seems to work most of the time, but still not 100% ?
 		setTimeout(function(){
 			$(newRow).find(".InputfieldAsmSelect select[multiple=multiple]").asmSelect(options);
-		},100);
+		},200);
 	};
 
     if ($.isFunction($(document).on)) {
