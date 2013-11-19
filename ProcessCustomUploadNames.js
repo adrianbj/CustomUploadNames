@@ -6,11 +6,11 @@ $(document).ready(function() {
 	var addRule = function(e) {
 		e.preventDefault();
 		$(this).toggleClass('ui-state-active');
+		var options = { sortable: false };
 		var newRow = $('<li class="Inputfield InputfieldWrapper InputfieldColumnWidthFirst">').load('?addRule=' + ($('#RenameRules ul.Inputfields ul.Inputfields').length), function() {
  			$(newRow).find(".InputfieldAsmSelect select[multiple=multiple]").asmSelect(options);
 		});
 		$(this).prev('ul:first').append(newRow);
-		var options = { sortable: false };
 	};
 
     if ($.isFunction($(document).on)) {
