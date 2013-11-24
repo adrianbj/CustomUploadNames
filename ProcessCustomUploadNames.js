@@ -1,6 +1,6 @@
 $(document).ready(function() {
 	// Add an "Add rule" button to the Rename Rules container
-	$('#RenameRules .InputfieldContent:first').append('<button class="ui-button ui-state-default" id="addRule" style="display: block; clear: left;">Add another rule</button>');
+	$('.Inputfield .InputfieldWrapper:last').append('<button class="ui-button ui-state-default" id="addRule" style="display: block; clear: left;">Add another rule</button>');
 
 	// Handle what happens on click of our new button
 	var addRule = function(e) {
