@@ -1,6 +1,17 @@
 $(document).ready(function() {
+
+	$('#RenameRules .Inputfields').not('.ui-helper-clearfix').sortable({ axis: "y" });
+
+	$('#RenameRules .InputfieldWrapper').each(function() {
+		$(this).prepend('<label style="cursor:move;margin-top:20px;" class="ui-widget ui-widget-header InputfieldItemHeader" for="">&nbsp;<span class="ui-icon ui-icon-trash InputfieldRepeaterTrash deleterow" style="display: block;float:right;cursor:pointer;">Delete</span><span class="ui-icon ui-icon-arrowthick-2-n-s InputfieldRepeaterDrag"></span></label>');
+
+	$('script:not([src^=http])').remove(); // removes inline script that was causing duplication of Add button for the Enabled Pages setting when drag/drop ordering.
+
+});
+
+
 	// Add an "Add rule" button to the Rename Rules container
-	$('.Inputfield .InputfieldWrapper:last').append('<button class="ui-button ui-state-default" id="addRule" style="display: block; clear: left;">Add another rule</button>');
+	$('#RenameRules .Inputfields').not('.ui-helper-clearfix').last().after('<br /><button class="ui-button ui-state-default" id="addRule" style="display: block; clear: left;">Add another rule</button>');
 
 	// Handle what happens on click of our new button
 	var addRule = function(e) {
@@ -8,9 +19,11 @@ $(document).ready(function() {
 		$(this).toggleClass('ui-state-active');
 		var options = { sortable: false };
 		var newRow = $('<li class="Inputfield InputfieldWrapper InputfieldColumnWidthFirst">').load('?addRule=' + ($('#RenameRules ul.Inputfields ul.Inputfields').length), function() {
+			$(newRow).prepend('<label style="cursor:move;margin-top:20px;" class="ui-widget ui-widget-header InputfieldItemHeader" for="">&nbsp;<span class="ui-icon ui-icon-trash InputfieldRepeaterTrash deleterow" style="display: block;float:right;cursor:pointer;">Delete</span><span class="ui-icon ui-icon-arrowthick-2-n-s InputfieldRepeaterDrag"></span></label>');
  			$(newRow).find(".InputfieldAsmSelect select[multiple=multiple]").asmSelect(options);
 		});
-		$(this).prev('ul:first').append(newRow);
+		$('.Inputfields').not('.ui-helper-clearfix').append(newRow);
+
 	};
 
     if ($.isFunction($(document).on)) {
@@ -21,17 +34,6 @@ $(document).ready(function() {
     }
 
 
-	// Adds the number to each row of rename fields
-	$('#RenameRules ul.Inputfields ul.Inputfields').each(function(i) {
-		$(this).find('li label').each(function() {
-			$(this).html($(this).html() + ' #' + (i+1));
-		});
-	});
-
-
-	// Append a delete button to the end of every category row
-	var deleteButton = '<li style="float:right"><button class="ui-button ui-state-default deleterow">Delete</button></li>';
-	$("#RenameRules ul.Inputfields ul.Inputfields").append(deleteButton);
 	// Handle click of the delete button
 	var deleteRow = function(e){
 		e.preventDefault();
@@ -53,7 +55,8 @@ $(document).ready(function() {
 			// Iterate through the rows of rename rules
 			$('#RenameRules ul.Inputfields ul.Inputfields').each(function(i) {
 				// If the filename format field for the row isn't empty, add the row to our data variable
-				if ($(this).find('input[name=filenameFormat]').val() != '') {
+				// No longer doing this check as want to allow the ability to set up a rule where the filename isn't changed
+				//if ($(this).find('input[name=filenameFormat]').val() != '') {
 					data[i] = {};
 					data[i]['enabledFields'] = $(this).find('select[id=Inputfield_enabledFields]').val();
 					data[i]['enabledTemplates'] = $(this).find('select[id=Inputfield_enabledTemplates]').val();
@@ -61,7 +64,7 @@ $(document).ready(function() {
 					data[i]['fileExtensions'] = $(this).find('input[name=fileExtensions]').val();
 					data[i]['filenameFormat'] = $(this).find('input[name=filenameFormat]').val();
 					data[i]['filenameLength'] = $(this).find('input[name=filenameLength]').val();
-				}
+				//}
 			});
 
 			if (getObjectSize(data) > 0) {
