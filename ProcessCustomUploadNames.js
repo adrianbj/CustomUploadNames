@@ -3,11 +3,10 @@ $(document).ready(function() {
 	$('#RenameRules .Inputfields').not('.ui-helper-clearfix').sortable({ axis: "y" });
 
 	$('#RenameRules .InputfieldWrapper').each(function() {
-		$(this).prepend('<label style="cursor:move;margin-top:20px;" class="ui-widget ui-widget-header InputfieldItemHeader" for="">&nbsp;<span class="ui-icon ui-icon-trash InputfieldRepeaterTrash deleterow" style="display: block;float:right;cursor:pointer;">Delete</span><span class="ui-icon ui-icon-arrowthick-2-n-s InputfieldRepeaterDrag"></span></label>');
-
-	$('script:not([src^=http])').remove(); // removes inline script that was causing duplication of Add button for the Enabled Pages setting when drag/drop ordering.
-
-});
+		$(this).prepend('<label style="cursor:move;" class="ui-widget ui-widget-header InputfieldItemHeader" for="">&nbsp;<span class="ui-icon ui-icon-trash InputfieldRepeaterTrash deleterow" style="display: block;float:right;cursor:pointer;">Delete</span><span class="ui-icon ui-icon-arrowthick-2-n-s InputfieldRepeaterDrag"></span></label>');
+		$(this).css("margin-top", "20px");
+		$('script:not([src^=http])').remove(); // removes inline script that was causing duplication of Add button for the Enabled Pages setting when drag/drop ordering.
+	});
 
 
 	// Add an "Add rule" button to the Rename Rules container
@@ -18,8 +17,8 @@ $(document).ready(function() {
 		e.preventDefault();
 		$(this).toggleClass('ui-state-active');
 		var options = { sortable: false };
-		var newRow = $('<li class="Inputfield InputfieldWrapper InputfieldColumnWidthFirst">').load('?addRule=' + ($('#RenameRules ul.Inputfields ul.Inputfields').length), function() {
-			$(newRow).prepend('<label style="cursor:move;margin-top:20px;" class="ui-widget ui-widget-header InputfieldItemHeader" for="">&nbsp;<span class="ui-icon ui-icon-trash InputfieldRepeaterTrash deleterow" style="display: block;float:right;cursor:pointer;">Delete</span><span class="ui-icon ui-icon-arrowthick-2-n-s InputfieldRepeaterDrag"></span></label>');
+		var newRow = $('<li class="Inputfield InputfieldWrapper InputfieldColumnWidthFirst" style="margin-top:20px;">').load('?addRule=' + ($('#RenameRules ul.Inputfields ul.Inputfields').length), function() {
+			$(newRow).prepend('<label style="cursor:move;" class="ui-widget ui-widget-header InputfieldItemHeader" for="">&nbsp;<span class="ui-icon ui-icon-trash InputfieldRepeaterTrash deleterow" style="display: block;float:right;cursor:pointer;">Delete</span><span class="ui-icon ui-icon-arrowthick-2-n-s InputfieldRepeaterDrag"></span></label>');
  			$(newRow).find(".InputfieldAsmSelect select[multiple=multiple]").asmSelect(options);
 		});
 		$('.Inputfields').not('.ui-helper-clearfix').append(newRow);
