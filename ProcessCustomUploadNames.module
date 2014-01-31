@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 17,
+            'version' => 18,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
             'autoload' => true,
@@ -45,7 +45,8 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                 "enabledTemplates" => "",
                 "filenameFormat" => "",
                 "fileExtensions" => "",
-                "filenameLength" => ""
+                "filenameLength" => "",
+                "ruleData" => ""
             );
     }
 
@@ -61,26 +62,14 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
 
 
     public function ready() {
-        // we're interested in page editor only
-        //if(wire('page')->process != 'ProcessPageEdit') return;
-
-        // skip changing templates (only target the actual edit form)
-        //$id = (int)$this->input->get->id;
-        //if(!$id) return;
-
-        // wire('page') would be the page with ProcessPageEdit
-        // GET parameter id tells the page that's being edited
-        //$this->editedPage = wire('page');
-
-        $this->addHookBefore('Pagefile::install', $this, 'customRenameUploads');
+        $this->addHookAfter('Pagefile::install', $this, 'customRenameUploads');
         $this->addHookBefore('InputfieldFile::processInputAddFile', $this, 'customRenameUploads');
     }
 
 
     public function customRenameUploads(HookEvent $event) {
-        //error_log('CALLED');
+
         $filename = $event->arguments(0);
-        //error_log('Initial Filename:'.$filename);
 
         if(!isset($event->object->field->id) || $event->object->field->id == ''){
             $upload = 'admin';
@@ -96,9 +85,6 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
 
         $editedPage = wire('pages')->get($pageid);
 
-        //error_log('UPLOAD:'.$upload);
-        //error_log('PID:'.$pageid.' : FID:' . $fieldid);
-
 
         // ruleData is a json string that we need to turn into an object
         $rules = json_decode($this->ruleData);
@@ -110,37 +96,27 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                 $parentEnabled = in_array($parent, $rule->enabledPages) || in_array(1, $rule->enabledPages) ? true : false;
             }
 
+            //all the conditions to not rename
             if((count($rule->enabledTemplates) != 0 && !in_array($editedPage->template->id, $rule->enabledTemplates))) continue;
-
             if($rule->enabledPages[0] != '' && !in_array($editedPage->id, $rule->enabledPages) && !$parentEnabled) continue;
-
             if(count($rule->enabledFields) != 0 && !in_array($fieldid, $rule->enabledFields)) continue; //if fields set and this is not a selected field
-
             if($rule->fileExtensions != '' && !in_array(pathinfo($filename, PATHINFO_EXTENSION), explode(",", trim(str_replace(', ',',',$rule->fileExtensions))))) continue; //if fileExtensions is set and the uploaded file does not match
-
-            //the basename check determines whether the path needs adding to the filename or not. The original image doesn't have the path, but the thumbnail does.
-            //So if it is the thumbnail, we just return as we don't need to rename it again
-            //error_log('FILENAME:'.$filename.':BASENAME:'.basename($filename));
-            if(basename($filename) == $filename) {
-                $filename = $this->pages->get("$pageid")->filesManager()->path() . basename($filename);
-            }
-            elseif($upload == 'api'){
-                //if api upload then need to keep the filename / path as is since we'll be renaming it in its source location. Not ideal, but if Pagefile::install hook is set to 'after' then you can't set the $event argument to change the filename.
-                //also none of the InputfieldFile hooks get called when uploading via the API, so I think this might be the only choice, although making Pagefile::setFilename hookable might help.
-            }
-            else{
-                continue;
-            }
-
-            if(strpos($filename, '://')) continue; // don't attempt to rename http-based files
-
             if($rule->filenameFormat == '') continue; // don't attempt to rename if the filename format field is empty
 
+            //build the new filename
+            $filename = $this->pages->get("$pageid")->filesManager()->path() . basename($filename);
             $newFilename = $this->createNewFilename($filename, $rule->filenameFormat, $rule->filenameLength, $pageid);
-            //error_log($filename.':'.$newFilename);
 
-            if(file_exists($filename)) rename($filename, $newFilename);
-            $event->setArgument(0, $newFilename); // update the argument to the install function
+            //rename the file
+            if($upload == 'api'){
+                $pagefile = $event->object;
+                $pagefile->rename($newFilename); //rename the pagefile after it has been installed (uploaded and added to the file field)
+            }
+            else{
+                if(file_exists($filename)) rename($filename, $newFilename);
+                $event->setArgument(0, $newFilename); // update the argument to the processInputAddFile function
+            }
+
         }
 
     }
@@ -274,7 +250,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                     }
             }
 
-            $data['renameRules'] = !empty($data['ruleData']) ? json_decode($data['ruleData'], true) : array(0 => array('enabledFields' => '', 'enabledTemplates' => '', 'enabledPages' => '', 'fileExtensions' => '', 'filenameFormat' => ''));
+            $data['renameRules'] = !empty($data['ruleData']) ? json_decode($data['ruleData'], true) : array(0 => array('enabledFields' => '', 'enabledTemplates' => '', 'enabledPages' => '', 'fileExtensions' => '', 'filenameFormat' => '', 'filenameLength' => ''));
             // If we have more rules stored then load extra rows
             if (!empty($data['renameRules'])) {
                     foreach ($data['renameRules'] as $k => $rule) {
