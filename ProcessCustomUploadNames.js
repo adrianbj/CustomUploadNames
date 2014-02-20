@@ -9,8 +9,8 @@ $(document).ready(function() {
 	});
 
 
-	// Add an "Add rule" button to the Rename Rules container
-	$('#RenameRules .Inputfields').not('.ui-helper-clearfix').last().after('<br /><button class="ui-button ui-state-default" id="addRule" style="display: block; clear: left;">Add another rule</button>');
+	// Add an "Add another rule" button to the Rename Rules container
+	$('#RenameRules').after('<br /><button class="ui-button ui-state-default" id="addRule" style="display: block; clear: left;">Add another rule</button><br />');
 
 	// Handle what happens on click of our new button
 	var addRule = function(e) {
@@ -59,10 +59,12 @@ $(document).ready(function() {
 					data[i] = {};
 					data[i]['enabledFields'] = $(this).find('select[id=Inputfield_enabledFields]').val();
 					data[i]['enabledTemplates'] = $(this).find('select[id=Inputfield_enabledTemplates]').val();
-					if($(this).find('input[id=enabledPages'+i+']').length !== 0) data[i]['enabledPages'] = $(this).find('input[id=enabledPages'+i+']').val().split(",");
+					//if($(this).find('input[id=enabledPages'+i+']').length !== 0) data[i]['enabledPages'] = $(this).find('input[id=enabledPages'+i+']').val().split(",");
+					data[i]['enabledPages'] = $(this).find('input[id=enabledPages'+i+']').val().split(",");
 					data[i]['fileExtensions'] = $(this).find('input[name=fileExtensions]').val();
 					data[i]['filenameFormat'] = $(this).find('input[name=filenameFormat]').val();
 					data[i]['filenameLength'] = $(this).find('input[name=filenameLength]').val();
+					data[i]['renameOnSave'] = $(this).find('input[name=renameOnSave]').is(':checked') ? 1 : 0;
 				//}
 			});
 
