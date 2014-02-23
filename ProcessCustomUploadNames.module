@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 20,
+            'version' => 21,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
             'autoload' => true,
@@ -110,7 +110,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
 
         if($hook == 'upload') $files = array($event->arguments(0) => $fieldid); // add filename with respective fieldid to array
 
-        if($hook == 'save'){
+        if($hook == 'save' && is_object($editedPage->fields)){
             $files = array();
             foreach($editedPage->fields as $field){
                 if($field->type instanceof FieldtypeFile){
