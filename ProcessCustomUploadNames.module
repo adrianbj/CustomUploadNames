@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 21,
+            'version' => 22,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
             'autoload' => true,
@@ -105,6 +105,8 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
             }
 
         }
+
+        if(!$pageid) return; //avoids interactions with other modules
 
         $editedPage = wire('pages')->get($pageid);
 
