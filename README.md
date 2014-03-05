@@ -12,13 +12,13 @@ Renaming works for files uploaded via the admin interface and also via the API, 
 * If a rule option is left blank, the rule with be applied to all fields/templates/pages/extensions.
 * Leave Filename Format blank to prevent renaming for a specific field/template/page combo, overriding a more general rule.
 * Rules are processed in order, so put more specific rules before more general ones. You can drag to change the order of rules as needed.
-* The following variables can be used in the filename format: $page, $template, $field, and $file. For some of these (eg. $field->description), if they haven't been filled out and saved prior to uploading the image, renaming won't occur on upload, but will happen on page save (could be an issue if image has already been inserted into RTE/HTML field before page save). Some examples:
+* The following variables can be used in the filename format: $page, $template, $field, and $file. For some of these (eg. $field->description), if they haven't been filled out and saved prior to uploading the image, renaming won't occur on upload, but will happen on page save - if you inserted it into an RTE/HTML field before page save, then the link will be automatically updated). Some examples:
   * $page->title
   * mysite-{$template->name}-images
   * $field->label
   * $file->description
   * {$page->name}-{$file->filesize}-kb
-* If 'Rename on Save' is checked files will be renamed again each time a page is saved (admin or front-end via API). WARNING: this setting will break any direct links to the old filename, which is particularly relevant for images inserted into RTE/HTML fields.
+* If 'Rename on Save' is checked files will be renamed again each time a page is saved (admin or front-end via API). WARNING: this setting will break any direct links to the old filename in your template files. However, images inserted into RTE/HTML fields on the same page will have their links automatically updated.
 * The Filename Format can be defined using plain text and PW $page variable, for example: mysite-{$page->path}
 * You can preserve the uploaded filename for certain rules. This will allow you to set a general renaming rule for your entire site, but then add a rule for a specific page/template/field that does not rename the uploaded file. Just simply build the rule, but leave the Filename Format field empty.
 * You can specify an optional character limit (to nearest whole word) for the length of the filename - useful if you are using $page->path, $path->name etc and have very long page names - eg. news articles, publication titles etc.
