@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 22,
+            'version' => 23,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
             'autoload' => true,
@@ -81,6 +81,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
             if(isset($field) && $field != 'Pages'){
                 $hook = 'upload';
                 $field = $this->fields->get($field->name);
+                if(!isset($field)) return;
                 if(!$field->type instanceof FieldtypeFile) return;
                 $fieldid = $field->id;
             }
@@ -143,7 +144,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                 if($rule->fileExtensions != '' && !in_array(pathinfo($filename, PATHINFO_EXTENSION), explode(",", trim(str_replace(', ',',',$rule->fileExtensions))))) continue; //if fileExtensions is set and the uploaded file does not match
                 //for these next rules, break rather than continue because these are not specifity rules. No match is a positive result and so we don't want to test the next rule.
                 if($rule->filenameFormat == '') break; // don't attempt to rename if the filename format field is empty
-                if($rule->renameOnSave != '1' && $hook == 'save' && pathinfo($filename, PATHINFO_FILENAME) != 'tmp-filename') break; // tmp-filename might be set when the eval'd filename format is not available yet because field is empty.
+                if($rule->renameOnSave != '1' && $hook == 'save' && strpos(pathinfo($filename, PATHINFO_FILENAME),'tmp-filename') === false) break; // tmp-filename might be set when the eval'd filename format is not available yet because field is empty.
 
                 //build the new filename
                 $fullFilename = $this->pages->get("$pageid")->filesManager()->path() . basename($filename);
@@ -185,7 +186,26 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                         $field = $this->fields->get($fieldid);
                         $file = $editedPage->$field->get("name=$filename");
                         $editedPage->$field->trackChange("filename");
-                        if($field->type instanceof FieldtypeImage) $file->removeVariations();
+                        if($field->type instanceof FieldtypeImage){
+                            foreach($file->getVariations() as $imageVariation){
+                                rename($imageVariation->filename, pathinfo($newFilename, PATHINFO_DIRNAME) . '/' . pathinfo($newFilename, PATHINFO_FILENAME) . str_replace(pathinfo($fullFilename, PATHINFO_FILENAME), '', pathinfo($imageVariation->filename, PATHINFO_FILENAME)) . '.' . pathinfo($fullFilename, PATHINFO_EXTENSION));
+                            }
+                            //iterate through all textarea fields on the page looking for embedded versions of images to rename
+                            foreach($editedPage->fields->find("type=FieldtypeTextarea") as $textareafield){
+                                $taf = $textareafield->name;
+                                if(strpos($editedPage->$taf,'<img') === false) continue; //continue to next loop if there are no images are embedded in this field's html
+                                $dom = new DOMDocument();
+                                $dom->loadHTML($editedPage->$taf);
+                                foreach($dom->getElementsByTagName('img') as $img) {
+                                    //if $img is the same image as the one we are currently looping through ($fullFilename), then rename it
+                                    if(strpos(pathinfo($img->getAttribute('src'), PATHINFO_FILENAME),pathinfo($fullFilename, PATHINFO_FILENAME)) !== false) {
+                                        $img->setAttribute('src', $editedPage->filesManager()->url() . pathinfo($newFilename, PATHINFO_FILENAME) . str_replace(pathinfo($fullFilename, PATHINFO_FILENAME), '', pathinfo($img->getAttribute('src'), PATHINFO_FILENAME)) . '.' . pathinfo($fullFilename, PATHINFO_EXTENSION));
+                                    }
+                                }
+                                $editedPage->$taf = $dom->saveHTML();
+                                $editedPage->save($taf);
+                            }
+                        }
                         $file->rename($newFilename);
                     }
                 }
@@ -268,7 +288,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                                     'notes' => "",
                                     'fieldset'=>'renameRules',
                                     'fieldsetname'=>'Rename Rules',
-                                    'fieldsetdescription'=>"&bull; Add as many different rules as you need.\n&bull; If a rule option is left blank, the rule with be applied to all fields/templates/pages/extensions.\n&bull; Leave Filename Format blank to prevent renaming for a specific field/template/page combo, overriding a more general rule.\n&bull; Rules are processed in order, so put more specific rules before more general ones. You can drag to change the order of rules as needed.\n&bull; The following variables can be used in the filename format: ".'$page, $template, $field, and $file. '."For some of these (eg. ".'$field'."->description), if they haven't been filled out and saved prior to uploading the image, renaming won't occur on upload, but will happen on page save (could be an issue if image has already been inserted into RTE/HTML field before page save). Some examples:\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'$page->title'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'mysite-{$template->name}-images'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'$field->label'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'$file->description'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'{$page->name}-{$file->filesize}-kb'."\n&bull; If 'Rename on Save' is checked files will be renamed again each time a page is saved (admin or front-end via API). WARNING: this setting will break any direct links to the old filename, which is particularly relevant for images inserted into RTE/HTML fields.",
+                                    'fieldsetdescription'=>"&bull; Add as many different rules as you need.\n&bull; If a rule option is left blank, the rule with be applied to all fields/templates/pages/extensions.\n&bull; Leave Filename Format blank to prevent renaming for a specific field/template/page combo, overriding a more general rule.\n&bull; Rules are processed in order, so put more specific rules before more general ones. You can drag to change the order of rules as needed.\n&bull; The following variables can be used in the filename format: ".'$page, $template, $field, and $file. '."For some of these (eg. ".'$field'."->description), if they haven't been filled out and saved prior to uploading the image, renaming won't occur on upload, but will happen on page save - if you inserted it into an RTE/HTML field before page save, then the link will be automatically updated). Some examples:\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'$page->title'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'mysite-{$template->name}-images'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'$field->label'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'$file->description'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'{$page->name}-{$file->filesize}-kb'."\n&bull; If 'Rename on Save' is checked files will be renamed again each time a page is saved (admin or front-end via API). WARNING: this setting will break any direct links to the old filename in your template files. However, images inserted into RTE/HTML fields on the same page will have their links automatically updated.",
                                     'width' => 33),
                     'enabledTemplates' => array(
                                     'label'=>"Enabled Templates",
