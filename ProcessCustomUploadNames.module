@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 23,
+            'version' => 24,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
             'autoload' => true,
@@ -197,8 +197,8 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                                 $dom = new DOMDocument();
                                 $dom->loadHTML($editedPage->$taf);
                                 foreach($dom->getElementsByTagName('img') as $img) {
-                                    //if $img is the same image as the one we are currently looping through ($fullFilename), then rename it
-                                    if(strpos(pathinfo($img->getAttribute('src'), PATHINFO_FILENAME),pathinfo($fullFilename, PATHINFO_FILENAME)) !== false) {
+                                    //if $img is the same image as (or a variation of) the one we are currently looping through ($fullFilename), then rename it
+                                    if($this->isImgVarOf(pathinfo($fullFilename, PATHINFO_BASENAME), pathinfo($img->getAttribute('src'), PATHINFO_BASENAME))){
                                         $img->setAttribute('src', $editedPage->filesManager()->url() . pathinfo($newFilename, PATHINFO_FILENAME) . str_replace(pathinfo($fullFilename, PATHINFO_FILENAME), '', pathinfo($img->getAttribute('src'), PATHINFO_FILENAME)) . '.' . pathinfo($fullFilename, PATHINFO_EXTENSION));
                                     }
                                 }
@@ -262,6 +262,20 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
 
         return $finalFilename;
 
+    }
+
+
+    public function isImgVarOf($origImage, $compareImage){
+        $re =   '/^'  .
+            pathinfo($origImage, PATHINFO_FILENAME) . '\.' .      // myfile.
+            '(\d+)x(\d+)' .         // 50x50
+            '([pd]\d+x\d+|[a-z]{1,2})?' .   // nw or p30x40 or d30x40
+            '\.' . pathinfo($origImage, PATHINFO_EXTENSION) .       // .ext
+            '$/';
+
+        if(preg_match($re, $compareImage)) {
+            return true;
+        }
     }
 
 
