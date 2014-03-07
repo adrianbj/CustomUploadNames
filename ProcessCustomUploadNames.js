@@ -57,6 +57,7 @@ $(document).ready(function() {
 				// No longer doing this check as want to allow the ability to set up a rule where the filename isn't changed
 				//if ($(this).find('input[name=filenameFormat]').val() != '') {
 					data[i] = {};
+					data[i]['tempDisabled'] = $(this).find('input[name=tempDisabled]').is(':checked') ? 1 : 0;
 					data[i]['enabledFields'] = $(this).find('select[id=Inputfield_enabledFields]').val();
 					data[i]['enabledTemplates'] = $(this).find('select[id=Inputfield_enabledTemplates]').val();
 					//if($(this).find('input[id=enabledPages'+i+']').length !== 0) data[i]['enabledPages'] = $(this).find('input[id=enabledPages'+i+']').val().split(",");

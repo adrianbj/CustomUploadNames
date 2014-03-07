@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 24,
+            'version' => 25,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
             'autoload' => true,
@@ -40,6 +40,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
      */
     static public function getDefaultData() {
             return array(
+                "tempDisabled" => "",
                 "enabledFields" => "",
                 "enabledPages" => "",
                 "enabledTemplates" => "",
@@ -138,6 +139,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                 }
 
                 //all the conditions to not rename
+                if($rule->tempDisabled == '1') continue;
                 if(count($rule->enabledFields) != 0 && !in_array($fieldid, $rule->enabledFields)) continue; //if fields set and this is not a selected field
                 if((count($rule->enabledTemplates) != 0 && !in_array($editedPage->template->id, $rule->enabledTemplates))) continue;
                 if(isset($rule->enabledPages) && $rule->enabledPages[0] != '' && !in_array($editedPage->id, $rule->enabledPages) && !$parentEnabled) continue;
@@ -294,16 +296,23 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
 
             // Populate the $fieldsModel with data for each field
             $fieldsModel = array(
+                    'tempDisabled' => array(
+                                    'label'=>"Temporarily Disabled",
+                                    'desc'=>'Check to disable this rule without deleting it.',
+                                    'type'=>"_createInputfieldCheckbox",
+                                    'options' => "",
+                                    'notes' => "",
+                                    'fieldset'=>'renameRules',
+                                    'fieldsetname'=>'Rename Rules',
+                                    'fieldsetdescription'=>"&bull; Add as many different rules as you need.\n&bull; If a rule option is left blank, the rule with be applied to all fields/templates/pages/extensions.\n&bull; Leave Filename Format blank to prevent renaming for a specific field/template/page combo, overriding a more general rule.\n&bull; Rules are processed in order, so put more specific rules before more general ones. You can drag to change the order of rules as needed.\n&bull; The following variables can be used in the filename format: ".'$page, $template, $field, and $file. '."For some of these (eg. ".'$field'."->description), if they haven't been filled out and saved prior to uploading the image, renaming won't occur on upload, but will happen on page save - if you inserted it into an RTE/HTML field before page save, then the link will be automatically updated). Some examples:\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'$page->title'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'mysite-{$template->name}-images'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'$field->label'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'$file->description'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'{$page->name}-{$file->filesize}-kb'."\n&bull; If 'Rename on Save' is checked files will be renamed again each time a page is saved (admin or front-end via API). WARNING: this setting will break any direct links to the old filename in your template files. However, images inserted into RTE/HTML fields on the same page will have their links automatically updated.",
+                                    'width'=>19),
                     'enabledFields' => array(
                                     'label' => "Enabled Fields",
                                     'desc' => "Select none for all fields.",
                                     'type' => "_createInputfieldAsmSelect",
                                     'options' => "",
                                     'notes' => "",
-                                    'fieldset'=>'renameRules',
-                                    'fieldsetname'=>'Rename Rules',
-                                    'fieldsetdescription'=>"&bull; Add as many different rules as you need.\n&bull; If a rule option is left blank, the rule with be applied to all fields/templates/pages/extensions.\n&bull; Leave Filename Format blank to prevent renaming for a specific field/template/page combo, overriding a more general rule.\n&bull; Rules are processed in order, so put more specific rules before more general ones. You can drag to change the order of rules as needed.\n&bull; The following variables can be used in the filename format: ".'$page, $template, $field, and $file. '."For some of these (eg. ".'$field'."->description), if they haven't been filled out and saved prior to uploading the image, renaming won't occur on upload, but will happen on page save - if you inserted it into an RTE/HTML field before page save, then the link will be automatically updated). Some examples:\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'$page->title'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'mysite-{$template->name}-images'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'$field->label'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'$file->description'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'{$page->name}-{$file->filesize}-kb'."\n&bull; If 'Rename on Save' is checked files will be renamed again each time a page is saved (admin or front-end via API). WARNING: this setting will break any direct links to the old filename in your template files. However, images inserted into RTE/HTML fields on the same page will have their links automatically updated.",
-                                    'width' => 33),
+                                    'width' => 27),
                     'enabledTemplates' => array(
                                     'label'=>"Enabled Templates",
                                     'desc'=>"Select none for all templates.",
@@ -311,7 +320,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                                     'options' => "",
                                     'notes' => "",
                                     'fieldset'=>'renameRules',
-                                    'width'=>34),
+                                    'width'=>27),
                     'enabledPages' => array(
                                     'label'=>"Enabled Pages",
                                     'desc'=>"AND THEIR CHILDREN Select none for all pages.",
@@ -319,7 +328,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                                     'options' => "",
                                     'notes' => "",
                                     'fieldset'=>'renameRules',
-                                    'width'=>33),
+                                    'width'=>27),
                     'fileExtensions' => array(
                                     'label'=>"File Extensions",
                                     'desc'=>"Comma separated (eg. png, jpg). Leave empty for all extensions.",
@@ -387,14 +396,15 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                     }
             }
 
-            $data['renameRules'] = !empty($data['ruleData']) ? json_decode($data['ruleData'], true) : array(0 => array('enabledFields' => '', 'enabledTemplates' => '', 'enabledPages' => '', 'fileExtensions' => '', 'filenameFormat' => '', 'filenameLength' => '', 'renameOnSave' => ''));
+            $data['renameRules'] = !empty($data['ruleData']) ? json_decode($data['ruleData'], true) : array(0 => array('tempDisabled' => '','enabledFields' => '', 'enabledTemplates' => '', 'enabledPages' => '', 'fileExtensions' => '', 'filenameFormat' => '', 'filenameLength' => '', 'renameOnSave' => ''));
             // If we have more rules stored then load extra rows
             if (!empty($data['renameRules'])) {
                     foreach ($data['renameRules'] as $k => $rule) {
                             $rulewrapper = new InputfieldWrapper();
-                            $rulewrapper->add(self::_createInputfieldAsmSelect('enabledFields', 'Enabled Fields', $rule['enabledFields'], $fieldsModel['enabledFields']['desc'], '', '', 33, $k));
-                            $rulewrapper->add(self::_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates', $rule['enabledTemplates'], $fieldsModel['enabledTemplates']['desc'], '', '', 34, $k));
-                            $rulewrapper->add(self::_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages', $rule['enabledPages'], $fieldsModel['enabledPages']['desc'], '', '', 33, $k));
+                            $rulewrapper->add(self::_createInputfieldCheckbox('tempDisabled', 'Temporarily Disabled', $rule['tempDisabled'], $fieldsModel['tempDisabled']['desc'], '', '', 19));
+                            $rulewrapper->add(self::_createInputfieldAsmSelect('enabledFields', 'Enabled Fields', $rule['enabledFields'], $fieldsModel['enabledFields']['desc'], '', '', 27, $k));
+                            $rulewrapper->add(self::_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates', $rule['enabledTemplates'], $fieldsModel['enabledTemplates']['desc'], '', '', 27, $k));
+                            $rulewrapper->add(self::_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages', $rule['enabledPages'], $fieldsModel['enabledPages']['desc'], '', '', 27, $k));
                             $rulewrapper->add(self::_createInputfieldText('fileExtensions', 'File Extensions', $rule['fileExtensions'], $fieldsModel['fileExtensions']['desc'], '', '', 25));
                             $rulewrapper->add(self::_createInputfieldText('filenameFormat', 'Filename Format', $rule['filenameFormat'], $fieldsModel['filenameFormat']['desc'], '', '', 25));
                             $rulewrapper->add(self::_createInputfieldText('filenameLength', 'Filename Length', $rule['filenameLength'], $fieldsModel['filenameLength']['desc'], '', '', 25));
@@ -429,9 +439,10 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
 
     public function addRule($id) {
             $fields = new InputfieldWrapper();
-            $fields->add($this->_createInputfieldAsmSelect('enabledFields', 'Enabled Fields', '', 'Select none for all fields.', '', '', 33, $id));
-            $fields->add($this->_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates', '', 'Select none for all templates.', '', '', 34, $id));
-            $fields->add($this->_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages', '', 'AND THEIR CHILDREN Select none for all pages.', '', '', 33, $id));
+            $fields->add($this->_createInputfieldCheckbox('tempDisabled', 'Temporarily Disabled', '', 'Check to disable this rule without deleting it.', '', '', 19));
+            $fields->add($this->_createInputfieldAsmSelect('enabledFields', 'Enabled Fields', '', 'Select none for all fields.', '', '', 27, $id));
+            $fields->add($this->_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates', '', 'Select none for all templates.', '', '', 27, $id));
+            $fields->add($this->_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages', '', 'AND THEIR CHILDREN Select none for all pages.', '', '', 27, $id));
             $fields->add($this->_createInputfieldText('fileExtensions', 'File Extensions', '', 'Comma separated list (eg. png, jpg). Leave empty for all extensions.', '', '', 25));
             $fields->add($this->_createInputfieldText('filenameFormat', 'Filename Format', '', 'eg: mysite-{$page->path} Leave empty to not rename.', '', '', 25));
             $fields->add($this->_createInputfieldText('filenameLength', 'Filename Length', '', 'Number of characters (nearest whole word). Leave empty for no truncation.', '', '', 25));
