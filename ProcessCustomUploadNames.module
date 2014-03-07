@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 25,
+            'version' => 27,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
             'autoload' => true,
@@ -64,9 +64,11 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
 
 
     public function ready() {
-        $this->addHookAfter('Pagefile::install', $this, 'customRenameUploads');
-        $this->addHookBefore('InputfieldFile::processInputAddFile', $this, 'customRenameUploads');
-        $this->addHookAfter('Pages::saveReady', $this, 'customRenameUploads');
+        if($this->ruleData!=''){
+            $this->addHookAfter('Pagefile::install', $this, 'customRenameUploads');
+            $this->addHookBefore('InputfieldFile::processInputAddFile', $this, 'customRenameUploads');
+            $this->addHookAfter('Pages::saveReady', $this, 'customRenameUploads');
+        }
     }
 
 
@@ -312,6 +314,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
                                     'type' => "_createInputfieldAsmSelect",
                                     'options' => "",
                                     'notes' => "",
+                                    'fieldset'=>'renameRules',
                                     'width' => 27),
                     'enabledTemplates' => array(
                                     'label'=>"Enabled Templates",
@@ -485,7 +488,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
             if($aName == 'enabledFields'){
                 foreach(wire('fields') as $currfield) {
                     if($currfield->flags & Field::flagSystem) continue;
-                    if($currfield->type instanceof FieldtypeImage || $currfield->type instanceof FieldtypeFile) $field->addOption($currfield->id, $currfield->name);
+                    if($currfield->type instanceof FieldtypeFile) $field->addOption($currfield->id, $currfield->name);
                 }
             }
             if($aName == 'enabledTemplates'){
