@@ -15,7 +15,7 @@
  *
  */
 
-class ProcessCustomUploadNames extends Process implements Module, ConfigurableModule {
+class ProcessCustomUploadNames extends WireData implements Module, ConfigurableModule {
 
     /**
      * getModuleInfo is a module required by all modules to tell ProcessWire about them
@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 27,
+            'version' => 28,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
             'autoload' => true,
@@ -428,16 +428,20 @@ class ProcessCustomUploadNames extends Process implements Module, ConfigurableMo
 
         // Check for AJAX request and process as appropriate
         if($this->config->ajax) {
-                if ($this->input->get->addRule) {
-                        $this->addRule($this->input->get->addRule);
-                }
+            if ($this->input->get->addRule) {
+                $this->addRule($this->input->get->addRule);
+            }
         }
 
         // Load jQuery Core if not a post request
         if(!$this->isPost) $this->modules->get('JqueryCore');
 
-        // Initialize the module
-        parent::init();
+        $this->addHookAfter("ProcessModule::executeEdit", $this, "addScript");
+
+    }
+
+    public function addScript($event){
+         wire("config")->scripts->add($this->config->urls->ProcessCustomUploadNames . "ProcessCustomUploadNames.js");
     }
 
     public function addRule($id) {
