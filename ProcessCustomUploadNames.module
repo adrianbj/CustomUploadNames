@@ -26,10 +26,10 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 28,
+            'version' => 29,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
-            'autoload' => true,
+            'autoload' => true
             );
     }
 
@@ -436,12 +436,14 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         // Load jQuery Core if not a post request
         if(!$this->isPost) $this->modules->get('JqueryCore');
 
-        $this->addHookAfter("ProcessModule::executeEdit", $this, "addScript");
-
+        //only load js file if we're on the module config settings for this module, rather than any other module
+        if($this->className() == $this->input->get->name) $this->addHookAfter("ProcessModule::executeEdit", $this, "addScript");
     }
 
     public function addScript($event){
-         wire("config")->scripts->add($this->config->urls->ProcessCustomUploadNames . "ProcessCustomUploadNames.js");
+        $conf = $this->getModuleInfo();
+        $version = (int) $conf['version'];
+         wire("config")->scripts->add($this->config->urls->ProcessCustomUploadNames . "ProcessCustomUploadNames.js?v={$version}");
     }
 
     public function addRule($id) {
