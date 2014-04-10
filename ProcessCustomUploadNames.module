@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 29,
+            'version' => 30,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
             'autoload' => true
@@ -129,6 +129,9 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
         if(empty($files)) return;
         foreach($files as $filename => $fieldid){
+
+            //quick fix to prevent this module from renaming video thumbs from GetVideoThumbs module
+            if (strpos($filename,'youtube') !== false || strpos($filename,'vimeo') !== false) return;
 
             // ruleData is a json string that we need to turn into an object
             $rules = json_decode($this->ruleData);
