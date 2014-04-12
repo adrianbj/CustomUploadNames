@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 30,
+            'version' => 31,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
             'autoload' => true
@@ -60,6 +60,22 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
        foreach(self::getDefaultData() as $key => $value) {
                $this->$key = $value;
        }
+    }
+
+    /**
+     * Initialize the module
+     */
+    public function init() {
+
+        // Check for AJAX request and process as appropriate
+        if($this->config->ajax) {
+            if ($this->input->get->addRule) {
+                $this->addRule($this->input->get->addRule);
+            }
+        }
+
+        //only load js file if we're on the module config settings for this module, rather than any other module
+        if($this->className() == $this->input->get->name) $this->addHookAfter("ProcessModule::executeEdit", $this, "addScript");
     }
 
 
@@ -133,10 +149,10 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             //quick fix to prevent this module from renaming video thumbs from GetVideoThumbs module
             if (strpos($filename,'youtube') !== false || strpos($filename,'vimeo') !== false) return;
 
-            // ruleData is a json string that we need to turn into an object
+            //ruleData is a json string that we need to turn into an object
             $rules = json_decode($this->ruleData);
 
-            // Iterate through each of the rename rules
+            //iterate through each of the rename rules
             foreach ($rules as $rule) {
 
                 foreach(explode("|",$editedPage->parents) as $parent){
@@ -289,15 +305,10 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
     static public function getModuleConfigInputfields(array $data) {
 
+            $data = array_merge(self::getDefaultData(), $data);
+
             // this is a container for fields, basically like a fieldset
             $fields = new InputfieldWrapper();
-
-            // Populate $data with the default config, because if they've never configured this module before,
-            // the $data provided to this function will be empty. Or, if you add new config items in a new version,
-            // $data won't have it until they configure it. Best bet is to merge defaults with custom, where
-            // custom overwrites the defaults (array_merge).
-
-            $data = array_merge(self::getDefaultData(), $data);
 
             // Populate the $fieldsModel with data for each field
             $fieldsModel = array(
@@ -424,24 +435,6 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             return $fields;
     }
 
-    /**
-     * Initialize the module
-     */
-    public function init() {
-
-        // Check for AJAX request and process as appropriate
-        if($this->config->ajax) {
-            if ($this->input->get->addRule) {
-                $this->addRule($this->input->get->addRule);
-            }
-        }
-
-        // Load jQuery Core if not a post request
-        if(!$this->isPost) $this->modules->get('JqueryCore');
-
-        //only load js file if we're on the module config settings for this module, rather than any other module
-        if($this->className() == $this->input->get->name) $this->addHookAfter("ProcessModule::executeEdit", $this, "addScript");
-    }
 
     public function addScript($event){
         $conf = $this->getModuleInfo();
