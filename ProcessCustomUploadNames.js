@@ -10,7 +10,7 @@ $(document).ready(function() {
 
 
 	// Add an "Add another rule" button to the Rename Rules container
-	$('#RenameRules').after('<br /><button class="ui-button ui-state-default" id="addRule" style="display: block; clear: left;">Add another rule</button><br />');
+	$('#RenameRules').after('<br /><button class="ui-button ui-widget ui-corner-all ui-state-default" id="addRule" style="display: block; clear: left;"><span class="ui-button-text">Add another rule</span></button><br />');
 
 	// Handle what happens on click of our new button
 	var addRule = function(e) {
