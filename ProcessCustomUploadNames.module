@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 32,
+            'version' => 33,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
             'autoload' => true
@@ -221,7 +221,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                                 $dom->loadHTML($editedPage->$taf);
                                 foreach($dom->getElementsByTagName('img') as $img) {
                                     //if $img is the same image as (or a variation of) the one we are currently looping through ($fullFilename), then rename it
-                                    if($this->isImgVarOf(pathinfo($fullFilename, PATHINFO_BASENAME), pathinfo($img->getAttribute('src'), PATHINFO_BASENAME))){
+                                    if(pathinfo($fullFilename, PATHINFO_BASENAME) == pathinfo($img->getAttribute('src'), PATHINFO_BASENAME) || $this->isImgVarOf(pathinfo($fullFilename, PATHINFO_BASENAME), pathinfo($img->getAttribute('src'), PATHINFO_BASENAME))){
                                         $img->setAttribute('src', $editedPage->filesManager()->url() . pathinfo($newFilename, PATHINFO_FILENAME) . str_replace(pathinfo($fullFilename, PATHINFO_FILENAME), '', pathinfo($img->getAttribute('src'), PATHINFO_FILENAME)) . '.' . pathinfo($fullFilename, PATHINFO_EXTENSION));
                                     }
                                 }
