@@ -26,10 +26,11 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 33,
+            'version' => 34,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
-            'autoload' => true
+            'autoload' => true,
+            'icon'     => 'edit'
             );
     }
 
