@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 35,
+            'version' => 36,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
             'autoload' => true,
@@ -269,6 +269,10 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
         //@ for eval used to silence "Trying to get property of non-object" notice when using something like $file->description which isn't available at the point when the file is uploaded/installed
         $page->of(true); //turned this on for allowing datetime field outputformatting to come through in filenames, rather than unixtimestamps
+        if(strpos($newname,'[') !== false){ //expecting a date format string for formatting the current datetime
+            preg_match("/\[(.*?)\]/", $newname, $dateformat_array);
+            $newname = str_replace($dateformat_array[0], date($dateformat_array[1]), $newname);
+        }
         $newname = $this->sanitizer->pageName(@eval('return "'.$newname.'";'), true);
         $page->of(false); //not sure if turning off is really necessarily, but seems safer
 
@@ -323,7 +327,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                                     'notes' => "",
                                     'fieldset'=>'renameRules',
                                     'fieldsetname'=>'Rename Rules',
-                                    'fieldsetdescription'=>"&bull; Add as many different rules as you need.\n&bull; If a rule option is left blank, the rule with be applied to all fields/templates/pages/extensions.\n&bull; Leave Filename Format blank to prevent renaming for a specific field/template/page combo, overriding a more general rule.\n&bull; Rules are processed in order, so put more specific rules before more general ones. You can drag to change the order of rules as needed.\n&bull; The following variables can be used in the filename format: ".'$page, $template, $field, and $file. '."For some of these (eg. ".'$field'."->description), if they haven't been filled out and saved prior to uploading the image, renaming won't occur on upload, but will happen on page save - if you inserted it into an RTE/HTML field before page save, then the link will be automatically updated). Some examples:\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'$page->title'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'mysite-{$template->name}-images'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'$field->label'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'$file->description'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".'{$page->name}-{$file->filesize}-kb'."\n&bull; If 'Rename on Save' is checked files will be renamed again each time a page is saved (admin or front-end via API). WARNING: this setting will break any direct links to the old filename in your template files. However, images inserted into RTE/HTML fields on the same page will have their links automatically updated.",
+                                    'fieldsetdescription'=>"&bull; Add as many different rules as you need.\n&bull; If a rule option is left blank, the rule with be applied to all fields/templates/pages/extensions.\n&bull; Leave Filename Format blank to prevent renaming for a specific field/template/page combo, overriding a more general rule.\n&bull; Rules are processed in order, so put more specific rules before more general ones. You can drag to change the order of rules as needed.\n&bull; The following variables can be used in the filename format: ".'$page, $template, $field, and $file. '."For some of these (eg. ".'$field'."->description), if they haven't been filled out and saved prior to uploading the image, renaming won't occur on upload, but will happen on page save - if you inserted it into an RTE/HTML field before page save, then the link will be automatically updated).\n\nSome example filename formats:\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;".'$page->title'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;".'mysite-{$template->name}-images'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;".'$field->label'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;".'$file->description'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;".'{$page->name}-{$file->filesize}-kb'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;".'prefix-[Y-m-d_H-i-s]-suffix (anything inside square brackets is is considered to be a PHP date format for the current date/time)'."\n\n&bull; If 'Rename on Save' is checked files will be renamed again each time a page is saved (admin or front-end via API). WARNING: this setting will break any direct links to the old filename in your template files. However, images inserted into RTE/HTML fields on the same page will have their links automatically updated.",
                                     'width'=>19),
                     'enabledFields' => array(
                                     'label' => "Enabled Fields",
