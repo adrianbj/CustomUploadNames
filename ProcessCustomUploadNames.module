@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 34,
+            'version' => 35,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'singular' => true,
             'autoload' => true,
@@ -268,7 +268,9 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         restore_error_handler();
 
         //@ for eval used to silence "Trying to get property of non-object" notice when using something like $file->description which isn't available at the point when the file is uploaded/installed
+        $page->of(true); //turned this on for allowing datetime field outputformatting to come through in filenames, rather than unixtimestamps
         $newname = $this->sanitizer->pageName(@eval('return "'.$newname.'";'), true);
+        $page->of(false); //not sure if turning off is really necessarily, but seems safer
 
         $e = error_get_last();
         if ($e['message']!='Undefined variable: undef_var' || $newname == ''){
