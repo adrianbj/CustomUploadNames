@@ -18,6 +18,8 @@ Renaming works for files uploaded via the admin interface and also via the API, 
   * $field->label
   * $file->description
   * {$page->name}-{$file->filesize}-kb
+  * prefix-[Y-m-d_H-i-s]-suffix (anything inside square brackets is is considered to be a PHP date format for the current date/time)
+  * randstring[n] (where n is the number of characters you want in the string)
 * If 'Rename on Save' is checked files will be renamed again each time a page is saved (admin or front-end via API). WARNING: this setting will break any direct links to the old filename in your template files. However, images inserted into RTE/HTML fields on the same page will have their links automatically updated.
 * The Filename Format can be defined using plain text and PW $page variable, for example: mysite-{$page->path}
 * You can preserve the uploaded filename for certain rules. This will allow you to set a general renaming rule for your entire site, but then add a rule for a specific page/template/field that does not rename the uploaded file. Just simply build the rule, but leave the Filename Format field empty.
