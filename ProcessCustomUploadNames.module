@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 40,
+            'version' => 41,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
             'singular' => true,
@@ -284,7 +284,12 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
         $e = error_get_last();
         if ($e['message']!='Undefined variable: undef_var' || $newname == ''){
-            $newname = $path_parts['filename'] . '.upload.tmp'; // this allows the filename to be renamed on page save if the field for the format wasn't available at upload
+            if(strpos($path_parts['filename'],'.upload.tmp') === false) {
+                $newname = $path_parts['filename'] . '.upload.tmp'; // this allows the filename to be renamed on page save if the field for the format wasn't available at upload
+            }
+            else{
+                $newname = $path_parts['filename'];
+            }
         }
 
         // truncate final new name before checking to see if "-n" needs to be appended
