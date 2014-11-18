@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 41,
+            'version' => 42,
             'summary' => __('Automatically rename file (including image) uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
             'singular' => true,
@@ -246,7 +246,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
      *
      */
     public function createNewFilename($filename, $newname, $filenameLength, $pageid, $fieldid){
-        $n = 0;
+
         $path_parts = pathinfo($filename);
 
         //filename format can support $page, $template, $field, and $file variables in the format as defined in the module config settings
@@ -268,18 +268,17 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         @$undef_var;
         restore_error_handler();
 
-        //@ for eval used to silence "Trying to get property of non-object" notice when using something like $file->description which isn't available at the point when the file is uploaded/installed
         $page->of(true); //turned this on for allowing datetime field outputformatting to come through in filenames, rather than unixtimestamps
         if(strpos($newname,'randstring') !== false){ // process the length from random string request
             preg_match("/\[(.*?)\]/", $newname, $length);
-            error_log($length[0].':'.$length[1]);
             $newname = str_replace('randstring['.$length[1].']', $this->generateRandomString($length[1]), $newname);
         }
         elseif(strpos($newname,'[') !== false){ //expecting a date format string for formatting the current datetime
             preg_match("/\[(.*?)\]/", $newname, $dateformat_array);
             $newname = str_replace($dateformat_array[0], date($dateformat_array[1]), $newname);
         }
-        $newname = $this->sanitizer->pageName(@eval('return "'.$newname.'";'), true);
+        //@ for eval used to silence "Trying to get property of non-object" notice when using something like $file->description which isn't available at the point when the file is uploaded/installed
+        $newname = @eval('return "'.$newname.'";');
         $page->of(false); //not sure if turning off is really necessarily, but seems safer
 
         $e = error_get_last();
@@ -295,11 +294,22 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         // truncate final new name before checking to see if "-n" needs to be appended
         if($filenameLength != '') $newname = $this->truncate($newname, $filenameLength);
 
-        do {
-            $finalFilename = $path_parts['dirname'] . '/' . $newname . ($n === 0 ? '' : '-' . $n) .  '.' . $path_parts['extension'];
-            $n++;
-        } while(file_exists($finalFilename));
+        $n = 0;
+        //if a number mask (### etc) is supplied in the filename format
+        if(strpos($newname,'#') !== false){
+            do {
+                $n++;
+                $custom_n = str_pad($n, substr_count($newname, '#')+1, '0', STR_PAD_LEFT);
+                $finalFilename = $path_parts['dirname'] . '/' . $this->sanitizer->pageName(preg_replace("/\#+/", "$1".$custom_n, $newname), true) .  '.' . $path_parts['extension'];
+            } while(file_exists($finalFilename));
+        }
+        else{
+            do {
+                $finalFilename = $path_parts['dirname'] . '/' . $this->sanitizer->pageName($newname, true) . ($n === 0 ? '' : '-' . $n) .  '.' . $path_parts['extension'];
+                $n++;
+            } while(file_exists($finalFilename));
 
+        }
 
         return $finalFilename;
 
