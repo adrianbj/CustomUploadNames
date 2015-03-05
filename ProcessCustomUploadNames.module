@@ -300,12 +300,12 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             do {
                 $n++;
                 $custom_n = str_pad($n, substr_count($newname, '#')+1, '0', STR_PAD_LEFT);
-                $finalFilename = $path_parts['dirname'] . '/' . $this->sanitizer->pageName(preg_replace("/\#+/", "$1".$custom_n, $newname), true) .  '.' . $path_parts['extension'];
+                $finalFilename = $path_parts['dirname'] . '/' . $this->sanitizer->pageName(preg_replace("/\#+/", "$1".$custom_n, $newname), Sanitizer::translate) .  '.' . $path_parts['extension'];
             } while(file_exists($finalFilename));
         }
         else{
             do {
-                $finalFilename = $path_parts['dirname'] . '/' . $this->sanitizer->pageName($newname, true) . ($n === 0 ? '' : '-' . $n) .  '.' . $path_parts['extension'];
+                $finalFilename = $path_parts['dirname'] . '/' . $this->sanitizer->pageName($newname, Sanitizer::translate) . ($n === 0 ? '' : '-' . $n) .  '.' . $path_parts['extension'];
                 $n++;
             } while(file_exists($finalFilename));
 
