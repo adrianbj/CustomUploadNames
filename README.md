@@ -1,7 +1,7 @@
 Rename Uploads
 ==============
 
-ProcessWire module to automatically rename file (including image) uploads according to a configurable format
+ProcessWire module to automatically rename file/image uploads according to a configurable format
 
 This module lets you define as many rules as you need to determine how uploaded files will be named and you can have different rules for different pages, templates, fields, and file extensions, or one rule for all uploads.
 Renaming works for files uploaded via the admin interface and also via the API, including images added from remote URLs.
