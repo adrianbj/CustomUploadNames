@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 45,
+            'version' => 46,
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
             'singular' => true,
@@ -136,11 +136,11 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
         if(!$pageid) return; //avoids interactions with other modules
 
-        $editedPage = wire('pages')->get($pageid);
+        $editedPage = method_exists($this->pages->get($pageid), 'getForPage') ? $this->pages->get($pageid)->getForPage() : $this->pages->get($pageid);
 
         if($action == 'upload') {
             //if page belongs to a repeater field
-            if(method_exists($editedPage, 'getForPage')) {
+            if(method_exists($this->pages->get($pageid), 'getForPage')) {
                 $files = array($pagefile->filename => $pageid . '|' . $fieldid); // add filename with respective repeater pageid and fieldid to array
             }
             else {
@@ -179,9 +179,9 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             //if it was a repeater field updating on save, then need to get pageid of repeater field
             $repeaterPage = null;
             if(strpos($fieldid,'|') !== false){
-                $pageid = strstr($fieldid, '|', true);
+                $repeaterid = strstr($fieldid, '|', true);
                 $fieldid = str_replace('|', '', strstr($fieldid, '|'));
-                $repeaterPage = $this->pages->get($pageid);
+                $repeaterPage = $this->pages->get($repeaterid);
             }
 
             //ruleData is a json string that we need to turn into an object
@@ -206,7 +206,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
                 //build the new filename
                 $fullFilename = $this->pages->get($pageid)->filesManager()->path() . basename($filename);
-                $newFilename = $this->createNewFilename($fullFilename, $rule->filenameFormat, $rule->filenameLength, $pageid, $fieldid, $repeaterPage);
+                $newFilename = $this->createNewFilename($fullFilename, $rule->filenameFormat, $rule->filenameLength, $editedPage, $fieldid, $repeaterPage);
 
                 //rename the file
                 if($action == 'upload'){
@@ -300,16 +300,19 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
      * Generate the new filename based on the user set config options
      *
      */
-    public function createNewFilename($filename, $newname, $filenameLength, $pageid, $fieldid, $repeaterPage = null){
+    public function createNewFilename($filename, $newname, $filenameLength, $editedPage, $fieldid, $repeaterPage = null){
 
         $path_parts = pathinfo($filename);
 
         //filename format can support $page, $template, $field, and $file variables in the format as defined in the module config settings
         //if repeater page, need to use parent page for determining name
-        $page = $repeaterPage !== null ? $repeaterPage->getForpage() : $this->pages->get($pageid);
+        $page = $editedPage;
         $field = $this->fields->get($fieldid);
         $template = $page->template;
-        $file = $this->pages->get($pageid)->$field->get("name={$path_parts['basename']}");
+
+        $filePage = $repeaterPage !== null ? $repeaterPage : $editedPage;
+
+        $file = $filePage->$field->get("name={$path_parts['basename']}");
 
 
         // Grab filename format and eval it. I am thinking about ditching the eval approach and going with a template style system
@@ -357,17 +360,42 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                 $n++;
                 $custom_n = str_pad($n, substr_count($newname, '#')+1, '0', STR_PAD_LEFT);
                 $finalFilename = $path_parts['dirname'] . '/' . $this->sanitizer->pageName(preg_replace("/\#+/", "$1".$custom_n, $newname), Sanitizer::translate) .  '.' . $path_parts['extension'];
-            } while(file_exists($finalFilename));
+            } while(in_array(pathinfo($finalFilename, PATHINFO_BASENAME), $this->getAllFilenames($page)) || file_exists($finalFilename) || file_exists(str_replace($path_parts['dirname'], $page->filesManager()->path(), $finalFilename)));
         }
         else{
             do {
                 $finalFilename = $path_parts['dirname'] . '/' . $this->sanitizer->pageName($newname, Sanitizer::translate) . ($n === 0 ? '' : '-' . $n) .  '.' . $path_parts['extension'];
                 $n++;
-            } while(file_exists($finalFilename));
-
+            } while(in_array(pathinfo($finalFilename, PATHINFO_BASENAME), $this->getAllFilenames($page)) || file_exists($finalFilename) || file_exists(str_replace($path_parts['dirname'], $page->filesManager()->path(), $finalFilename)));
         }
 
         return $finalFilename;
+    }
+
+
+    // gets filenames for all files/images on the page, including inside repeaters
+    public function getAllFilenames($p) {
+        $files = array();
+        foreach($p->fields as $field){
+
+            if($field->type instanceof FieldtypeFile){
+                foreach($p->{$field->name} as $file){
+                    $files[] = $file->name;
+                }
+            }
+            if($field->type instanceof FieldtypeRepeater){
+                foreach($p->$field as $repeater) {
+                    foreach($repeater->fields as $rf) {
+                        if($rf->type instanceof FieldtypeFile){
+                            foreach($repeater->$rf as $file){
+                                $files[] = $file->name;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return $files;
     }
 
 
