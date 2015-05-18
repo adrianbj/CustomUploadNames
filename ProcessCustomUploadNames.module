@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 46,
+            'version' => 47,
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
             'singular' => true,
@@ -202,7 +202,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                 if($rule->fileExtensions != '' && !in_array(pathinfo($filename, PATHINFO_EXTENSION), explode(",", trim(str_replace(', ',',',$rule->fileExtensions))))) continue; //if fileExtensions is set and the uploaded file does not match
                 //for these next rules, break rather than continue because these are not specifity rules. No match is a positive result and so we don't want to test the next rule.
                 if($rule->filenameFormat == '') break; // don't attempt to rename if the filename format field is empty
-                if($rule->renameOnSave != '1' && $action == 'save' && strpos(pathinfo($filename, PATHINFO_FILENAME),'_upload_tmp') === false) break; // .tmp might be set when the eval'd filename format is not available yet because field is empty.
+                if($rule->renameOnSave != '1' && $action == 'save' && strpos(pathinfo($filename, PATHINFO_FILENAME),'_upload_tmp') === false) break; // _upload_tmp set when the eval'd filename format is not available yet because field is empty.
 
                 //build the new filename
                 $fullFilename = $this->pages->get($pageid)->filesManager()->path() . basename($filename);
@@ -320,13 +320,6 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         //$newname = $this->sanitizer->pageName(eval($newname), true);
         //$newname = $this->sanitizer->pageName(eval("return $newname;"), true);
 
-        // put error_get_last in a defined state so we can know if the eval added the last error
-        // http://ca3.php.net/manual/en/function.error-get-last.php#113518
-        // var_dump or anything else, as this will never be called because of the 0
-        set_error_handler('var_dump', 0);
-        @$undef_var;
-        restore_error_handler();
-
         $page->of(true); //turned this on for allowing datetime field outputformatting to come through in filenames, rather than unixtimestamps
         if(strpos($newname,'randstring') !== false){ // process the length from random string request
             preg_match("/\[(.*?)\]/", $newname, $length);
@@ -337,17 +330,22 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             $newname = str_replace($dateformat_array[0], date($dateformat_array[1]), $newname);
         }
         //@ for eval used to silence "Trying to get property of non-object" notice when using something like $file->description which isn't available at the point when the file is uploaded/installed
-        $newname = @eval('return "'.$newname.'";');
+        $evalednewname = @eval('return "'.$newname.'";');
+
         $page->of(false); //not sure if turning off is really necessarily, but seems safer
 
-        $e = error_get_last();
-        if ($e['message']!='Undefined variable: undef_var' || $newname == ''){
+        //check to see if there is a difference between the filename format with the variables inside {} removed and the eval'd filename
+        //if they are the same then the eval'd variables (PW fields etc) are empty so we should treat this as a temp name until fields are populated
+        if(preg_replace('/(\{[^\}]*\})/', '', $newname) == $evalednewname || $evalednewname == '') {
             if(strpos($path_parts['filename'],'_upload_tmp') === false) {
                 $newname = $path_parts['filename'] . '_upload_tmp'; // this allows the filename to be renamed on page save if the field for the format wasn't available at upload
             }
             else{
                 $newname = $path_parts['filename'];
             }
+        }
+        else {
+            $newname = $evalednewname;
         }
 
         // truncate final new name before checking to see if "-n" needs to be appended
