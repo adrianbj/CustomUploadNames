@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 48,
+            'version' => 49,
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
             'singular' => true,
@@ -338,12 +338,10 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         // if any of the eval'd variables (PW fields etc) are empty we should treat this as a temp name until fields are populated
         preg_match_all('/\{[^\}]*\}/', $newname, $matches);
         $blankField = false;
-        foreach($matches as $match) {
-            foreach($match as $pwfield) {
-                if(@eval('return "'.$pwfield.'";') == '') {
-                    $blankField = true;
-                    break; // if a blank PW field found break now
-                }
+        foreach($matches[0] as $pwfield) {
+            if(@eval('return "'.$pwfield.'";') == '') {
+                $blankField = true;
+                break; // if a blank PW field found break now
             }
         }
 
