@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 51,
+            'version' => 52,
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
             'singular' => true,
@@ -85,8 +85,8 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
         if($this->ruleData!=''){
             //page in the admin
-            if(isset($this->input->get->id)) {
-                if($this->pages->get($this->input->get->id)->template == 'language') return;
+            $processPage = $this->wire('page');
+            if($processPage->process && in_array('WirePageEditor', class_implements((string) $processPage->process))) {
                 $this->addHookBefore('InputfieldFile::fileAdded', $this, 'customRenameUploads');
             }
             //front-end API
@@ -103,8 +103,9 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         $pageid = null;
 
         //admin
-        if(isset($this->input->get->id)) {
-
+        $process = $this->wire('process');
+        if($process instanceof WirePageEditor) {
+            if($process->getPage()->template == 'language') return;
             $pagefile = $event->argumentsByName("pagefile");
             $field = $event->object;
 
