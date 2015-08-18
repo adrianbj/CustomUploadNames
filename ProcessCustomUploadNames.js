@@ -20,6 +20,9 @@ $(document).ready(function() {
 		var newRow = $('<li class="Inputfield InputfieldWrapper InputfieldColumnWidthFirst" style="margin-top:20px;">').load('?addRule=' + ($('#RenameRules ul.Inputfields ul.Inputfields').length), function() {
 			$(newRow).prepend('<label style="cursor:move;" class="ui-widget ui-widget-header InputfieldItemHeader" for="">&nbsp;<span class="ui-icon ui-icon-trash InputfieldRepeaterTrash deleterow" style="display: block;float:right;cursor:pointer;">Delete</span><span class="ui-icon ui-icon-arrowthick-2-n-s InputfieldRepeaterDrag"></span></label>');
  			$(newRow).find(".InputfieldAsmSelect select[multiple=multiple]").asmSelect(options);
+			$(".InputfieldPageListSelectMultipleData").each(function() {
+				InputfieldPageListSelectMultiple.init($(this));
+			});
 		});
 		$('.Inputfields').not('.ui-helper-clearfix').append(newRow);
 
