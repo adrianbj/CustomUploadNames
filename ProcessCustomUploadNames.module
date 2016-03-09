@@ -27,6 +27,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         return array(
             'title' => __('Custom Upload Names'),
             'version' => 54,
+            'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
             'singular' => true,
