@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 55,
+            'version' => 56,
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -562,13 +562,13 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                             // For Jquery to work we want all rename rules fields in a wrapper of their own, so skip adding the field here
                             if ($fM['fieldset'] != 'renameRules') {
                                     ${$fM['fieldset']}->add(
-                                        self::$fM['type']($f, $fM['label'], $data[$f], $fM['desc'], $fM['options'], $fM['notes'], $fM['width'])
+                                        self::{$fM['type']}($f, $fM['label'], $data[$f], $fM['desc'], $fM['options'], $fM['notes'], $fM['width'])
                                     );
                             }
                             $fields->add(${$fM['fieldset']});
                     } else {
                             $fields->add(
-                                self::$fM['type']($f, $fM['label'], $data[$f], $fM['desc'], $fM['options'], $fM['notes'], $fM['width'])
+                                self::{$fM['type']}($f, $fM['label'], $data[$f], $fM['desc'], $fM['options'], $fM['notes'], $fM['width'])
                             );
                     }
             }
