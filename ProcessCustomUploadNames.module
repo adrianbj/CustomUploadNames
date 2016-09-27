@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 57,
+            'version' => 58,
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -343,13 +343,9 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         // check if the field is a language alternate field and if so, set the user language to this language
         $arr = explode('_', $field->name);
         $pdfLanguageName = end($arr);
-        foreach($this->languages as $language) {
-            if($pdfLanguageName == $language->name) {
-                $pdfLanguage = $language;
-                $this->user->language = $language;
-                break;
-            }
-        }
+        $language = $this->languages->get($pdfLanguageName);
+        if($language->id) $this->user->language = $language;
+
 
         if(strpos($newname,'randstring') !== false){ // process the length from random string request
             preg_match("/\[(.*?)\]/", $newname, $length);
