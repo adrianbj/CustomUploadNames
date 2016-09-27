@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => 56,
+            'version' => 57,
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -339,6 +339,18 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         //$newname = $this->sanitizer->pageName(eval("return $newname;"), true);
 
         $page->of(true); //turned this on for allowing datetime field outputformatting to come through in filenames, rather than unixtimestamps
+
+        // check if the field is a language alternate field and if so, set the user language to this language
+        $arr = explode('_', $field->name);
+        $pdfLanguageName = end($arr);
+        foreach($this->languages as $language) {
+            if($pdfLanguageName == $language->name) {
+                $pdfLanguage = $language;
+                $this->user->language = $language;
+                break;
+            }
+        }
+
         if(strpos($newname,'randstring') !== false){ // process the length from random string request
             preg_match("/\[(.*?)\]/", $newname, $length);
             $newname = str_replace('randstring['.$length[1].']', $this->generateRandomString($length[1]), $newname);
