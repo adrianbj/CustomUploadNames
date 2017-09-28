@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.0.1',
+            'version' => '1.0.2',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -166,8 +166,17 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                         $files[$file->name] = $field->id; // add filename with respective fieldid to array
                     }
                 }
-                if($field->type == "FieldtypeRepeater" || $field->type == "FieldtypeRepeaterMatrix") {
-                    foreach($editedPage->$field as $repeater) {
+                elseif($field->type instanceof FieldtypeFieldsetPage) {
+                    foreach($editedPage->{$field->name}->fields as $rf) {
+                        if($rf->type instanceof FieldtypeFile) {
+                            foreach($editedPage->{$field->name}->{$rf->name} as $file) {
+                                $files[$file->name] = $editedPage->{$field->name}->id.'|'.$field->id; // add filename with respective fieldid to array
+                            }
+                        }
+                    }
+                }
+                elseif($field->type instanceof FieldtypeRepeater) {
+                    foreach($editedPage->{$field->name} as $repeater) {
 
                         //make sure repeater item actually exists already, which is important when you have added items beyond those initially rendered.
                         //fixes this issue: https://github.com/ryancramerdesign/ProcessWire/issues/1541
@@ -418,7 +427,16 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                     $files[] = $file->name;
                 }
             }
-            if($field->type == "FieldtypeRepeater" || $field->type == "FieldtypeRepeaterMatrix") {
+            elseif($field->type instanceof FieldtypeFieldsetPage) {
+                foreach($p->{$field->name}->fields as $rf) {
+                    if($rf->type instanceof FieldtypeFile) {
+                        foreach($p->{$field->name}->{$rf->name} as $file) {
+                            $files[] = $file->name;
+                        }
+                    }
+                }
+            }
+            elseif($field->type instanceof FieldtypeRepeater) {
                 foreach($p->$field as $repeater) {
                     foreach($repeater->fields as $rf) {
                         if($rf->type instanceof FieldtypeFile) {
