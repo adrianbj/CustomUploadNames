@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.0.2',
+            'version' => '1.0.3',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -78,7 +78,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
         // Check for AJAX request and process as appropriate
         if($this->wire('config')->ajax) {
-            if ($this->wire('input')->get->addRule) {
+            if($this->wire('input')->get->addRule) {
                 $this->addRule($this->wire('input')->get->addRule);
             }
         }
@@ -198,7 +198,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
         foreach($files as $filename => $fieldid) {
             //quick fix to prevent this module from renaming video thumbs from GetVideoThumbs module
-            if (strpos($filename,'youtube') !== false || strpos($filename,'vimeo') !== false) return;
+            if(strpos($filename,'youtube') !== false || strpos($filename,'vimeo') !== false) return;
 
             //if it was a repeater field updating on save, then need to get pageid of repeater field
             $repeaterPage = null;
@@ -221,8 +221,8 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
                 //all the conditions to not rename
                 if($rule->tempDisabled == '1') continue;
-                if(count($rule->enabledFields) != 0 && !in_array($fieldid, $rule->enabledFields)) continue; //if fields set and this is not a selected field
-                if((count($rule->enabledTemplates) != 0 && !in_array($editedPage->template->id, $rule->enabledTemplates))) continue;
+                if(is_array($rule->enabledFields) && count($rule->enabledFields) && !in_array($fieldid, $rule->enabledFields)) continue; //if fields set and this is not a selected field
+                if(is_array($rule->enabledTemplates) && count($rule->enabledTemplates) && !in_array($editedPage->template->id, $rule->enabledTemplates)) continue;
                 if(isset($rule->enabledPages) && $rule->enabledPages[0] != '' && !in_array($editedPage->id, $rule->enabledPages) && !$parentEnabled) continue;
                 if($rule->fileExtensions != '' && !in_array(pathinfo($filename, PATHINFO_EXTENSION), explode(",", trim(str_replace(', ',',',$rule->fileExtensions))))) continue; //if fileExtensions is set and the uploaded file does not match
                 //for these next rules, break rather than continue because these are not specifity rules. No match is a positive result and so we don't want to test the next rule.
@@ -576,48 +576,49 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             // Now use $data and $fieldsModel loop to create all fields
             $fieldset = '';
 
-            foreach ($fieldsModel as $f=>$fM) {
+            foreach($fieldsModel as $f=>$fM) {
                     $type = $fM['type'];
                     $fM['width'] = isset($fM['width']) ? $fM['width'] : 100;
-                    if (isset($fM['fieldset'])) {
-                            if ($fM['fieldset'] != $fieldset) {
-                                    $fieldset = $fM['fieldset'];
-                                    ${$fM['fieldset']} = $this->wire('modules')->get("InputfieldFieldset");
-                                    ${$fM['fieldset']}->label = $fM['fieldsetname'];
-                                    ${$fM['fieldset']}->description = $fM['fieldsetdescription'];
-                                    ${$fM['fieldset']}->id = str_replace(' ', '', $fM['fieldsetname']);
-                                    ${$fM['fieldset']}->set('collapsed', Inputfield::collapsedNo);
-                            }
-                            // For Jquery to work we want all rename rules fields in a wrapper of their own, so skip adding the field here
-                            if ($fM['fieldset'] != 'renameRules') {
-                                    ${$fM['fieldset']}->add(
-                                        self::$type($f, $fM['label'], $data[$f], $fM['desc'], $fM['options'], $fM['notes'], $fM['width'])
-                                    );
-                            }
-                            $fields->add(${$fM['fieldset']});
-                    } else {
-                            $fields->add(
+                    if(isset($fM['fieldset'])) {
+                        if($fM['fieldset'] != $fieldset) {
+                            $fieldset = $fM['fieldset'];
+                            ${$fM['fieldset']} = $this->wire('modules')->get("InputfieldFieldset");
+                            ${$fM['fieldset']}->label = $fM['fieldsetname'];
+                            ${$fM['fieldset']}->description = $fM['fieldsetdescription'];
+                            ${$fM['fieldset']}->id = str_replace(' ', '', $fM['fieldsetname']);
+                            ${$fM['fieldset']}->set('collapsed', Inputfield::collapsedNo);
+                        }
+                        // For Jquery to work we want all rename rules fields in a wrapper of their own, so skip adding the field here
+                        if($fM['fieldset'] != 'renameRules') {
+                            ${$fM['fieldset']}->add(
                                 self::$type($f, $fM['label'], $data[$f], $fM['desc'], $fM['options'], $fM['notes'], $fM['width'])
                             );
+                        }
+                        $fields->add(${$fM['fieldset']});
+                    }
+                    else {
+                        $fields->add(
+                            self::$type($f, $fM['label'], $data[$f], $fM['desc'], $fM['options'], $fM['notes'], $fM['width'])
+                        );
                     }
             }
 
             $data['renameRules'] = !empty($data['ruleData']) ? json_decode($data['ruleData'], true) : array(0 => array('tempDisabled' => '','enabledFields' => '', 'enabledTemplates' => '', 'enabledPages' => '', 'fileExtensions' => '', 'filenameFormat' => '', 'filenameLength' => '', 'renameOnSave' => ''));
             // If we have more rules stored then load extra rows
-            if (!empty($data['renameRules'])) {
-                    foreach ($data['renameRules'] as $k => $rule) {
-                            $rulewrapper = new InputfieldWrapper();
-                            $rulewrapper->add(self::_createInputfieldCheckbox('tempDisabled', 'Temporarily Disabled', $rule['tempDisabled'], $fieldsModel['tempDisabled']['desc'], '', '', 19));
-                            $rulewrapper->add(self::_createInputfieldAsmSelect('enabledFields', 'Enabled Fields', $rule['enabledFields'], $fieldsModel['enabledFields']['desc'], '', '', 27, $k));
-                            $rulewrapper->add(self::_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates', $rule['enabledTemplates'], $fieldsModel['enabledTemplates']['desc'], '', '', 27, $k));
-                            $rulewrapper->add(self::_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages', $rule['enabledPages'], $fieldsModel['enabledPages']['desc'], '', '', 27, $k));
-                            $rulewrapper->add(self::_createInputfieldText('fileExtensions', 'File Extensions', $rule['fileExtensions'], $fieldsModel['fileExtensions']['desc'], '', '', 25));
-                            $rulewrapper->add(self::_createInputfieldText('filenameFormat', 'Filename Format', $rule['filenameFormat'], $fieldsModel['filenameFormat']['desc'], '', '', 25));
-                            $rulewrapper->add(self::_createInputfieldText('filenameLength', 'Filename Length', $rule['filenameLength'], $fieldsModel['filenameLength']['desc'], '', '', 25));
-                            $rulewrapper->add(self::_createInputfieldCheckbox('renameOnSave', 'Rename on Save', $rule['renameOnSave'], $fieldsModel['renameOnSave']['desc'], '', '', 25));
+            if(!empty($data['renameRules'])) {
+                foreach ($data['renameRules'] as $k => $rule) {
+                    $rulewrapper = new InputfieldWrapper();
+                    $rulewrapper->add(self::_createInputfieldCheckbox('tempDisabled', 'Temporarily Disabled', $rule['tempDisabled'], $fieldsModel['tempDisabled']['desc'], '', '', 19));
+                    $rulewrapper->add(self::_createInputfieldAsmSelect('enabledFields', 'Enabled Fields', $rule['enabledFields'], $fieldsModel['enabledFields']['desc'], '', '', 27, $k));
+                    $rulewrapper->add(self::_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates', $rule['enabledTemplates'], $fieldsModel['enabledTemplates']['desc'], '', '', 27, $k));
+                    $rulewrapper->add(self::_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages', $rule['enabledPages'], $fieldsModel['enabledPages']['desc'], '', '', 27, $k));
+                    $rulewrapper->add(self::_createInputfieldText('fileExtensions', 'File Extensions', $rule['fileExtensions'], $fieldsModel['fileExtensions']['desc'], '', '', 25));
+                    $rulewrapper->add(self::_createInputfieldText('filenameFormat', 'Filename Format', $rule['filenameFormat'], $fieldsModel['filenameFormat']['desc'], '', '', 25));
+                    $rulewrapper->add(self::_createInputfieldText('filenameLength', 'Filename Length', $rule['filenameLength'], $fieldsModel['filenameLength']['desc'], '', '', 25));
+                    $rulewrapper->add(self::_createInputfieldCheckbox('renameOnSave', 'Rename on Save', $rule['renameOnSave'], $fieldsModel['renameOnSave']['desc'], '', '', 25));
 
-                            $renameRules->add($rulewrapper);
-                    }
+                    $renameRules->add($rulewrapper);
+                }
             } else {
 
             }
@@ -628,109 +629,110 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     protected function addScript($event) {
         $conf = $this->getModuleInfo();
         $version = (int) $conf['version'];
-         wire("config")->scripts->add($this->wire('config')->urls->ProcessCustomUploadNames . "ProcessCustomUploadNames.js?v={$version}");
+        wire("config")->scripts->add($this->wire('config')->urls->ProcessCustomUploadNames . "ProcessCustomUploadNames.js?v={$version}");
+        wire("config")->styles->add($this->wire('config')->urls->ProcessCustomUploadNames . "ProcessCustomUploadNames.css?v={$version}");
     }
 
     private function addRule($id) {
-            $fields = new InputfieldWrapper();
-            $fields->add($this->_createInputfieldCheckbox('tempDisabled', 'Temporarily Disabled', '', 'Check to disable this rule without deleting it.', '', '', 19));
-            $fields->add($this->_createInputfieldAsmSelect('enabledFields', 'Enabled Fields', '', 'Select none for all fields.', '', '', 27, $id));
-            $fields->add($this->_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates', '', 'Select none for all templates.', '', '', 27, $id));
-            $fields->add($this->_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages', '', 'AND THEIR CHILDREN Select none for all pages.', '', '', 27, $id));
-            $fields->add($this->_createInputfieldText('fileExtensions', 'File Extensions', '', 'Comma separated list (eg. png, jpg). Leave empty for all extensions.', '', '', 25));
-            $fields->add($this->_createInputfieldText('filenameFormat', 'Filename Format', '', 'eg: mysite-{$page->path} Leave empty to not rename.', '', '', 25));
-            $fields->add($this->_createInputfieldText('filenameLength', 'Filename Length', '', 'Number of characters (nearest whole word). Leave empty for no truncation.', '', '', 25));
-            $fields->add($this->_createInputfieldCheckbox('renameOnSave', 'Rename on Save', '', 'Rename again on page save. See warning above.', '', '', 25));
-            echo $fields->render();
-            exit;
+        $fields = new InputfieldWrapper();
+        $fields->add($this->_createInputfieldCheckbox('tempDisabled', 'Temporarily Disabled', '', 'Check to disable this rule without deleting it.', '', '', 19));
+        $fields->add($this->_createInputfieldAsmSelect('enabledFields', 'Enabled Fields', '', 'Select none for all fields.', '', '', 27, $id));
+        $fields->add($this->_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates', '', 'Select none for all templates.', '', '', 27, $id));
+        $fields->add($this->_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages', '', 'AND THEIR CHILDREN Select none for all pages.', '', '', 27, $id));
+        $fields->add($this->_createInputfieldText('fileExtensions', 'File Extensions', '', 'Comma separated list (eg. png, jpg). Leave empty for all extensions.', '', '', 25));
+        $fields->add($this->_createInputfieldText('filenameFormat', 'Filename Format', '', 'eg: mysite-{$page->path} Leave empty to not rename.', '', '', 25));
+        $fields->add($this->_createInputfieldText('filenameLength', 'Filename Length', '', 'Number of characters (nearest whole word). Leave empty for no truncation.', '', '', 25));
+        $fields->add($this->_createInputfieldCheckbox('renameOnSave', 'Rename on Save', '', 'Rename again on page save. See warning above.', '', '', 25));
+        echo $fields->render();
+        exit;
     }
 
     private function _createInputfieldText($ipName, $ipTitle, $ipValue='', $ipDesc='', $ipOptions='', $ipNotes='', $ipWidth, $ipRequired=false) {
-            $field =  $this->wire('modules')->get("InputfieldText");
-            $field->name = $ipName;
-            $field->label = $ipTitle;
-            $field->required = $ipRequired;
-            $field->description = $ipDesc;
-            $field->attr('value', $ipValue);
-            $field->attr('notes', $ipNotes);
-            $field->columnWidth = $ipWidth;
-            return $field;
+        $field =  $this->wire('modules')->get("InputfieldText");
+        $field->name = $ipName;
+        $field->label = $ipTitle;
+        $field->required = $ipRequired;
+        $field->description = $ipDesc;
+        $field->attr('value', $ipValue);
+        $field->attr('notes', $ipNotes);
+        $field->columnWidth = $ipWidth;
+        return $field;
     }
 
     private function _createInputfieldCheckbox($ipName, $ipTitle, $ipValue='', $ipDesc='', $ipOptions='', $ipNotes='', $ipWidth, $ipRequired=false) {
-            $field = $this->wire('modules')->get("InputfieldCheckbox");
-            $field->name = $ipName;
-            $field->label = $ipTitle;
-            $field->label2 = ' '; // this sets the displayed label to nothing - needs the space or it reverts to displaying ->label
-            $field->required = $ipRequired;
-            $field->description = $ipDesc;
-            $field->attr('checked', $ipValue == '1' ? 'checked' : '' );
-            $field->value = $ipValue;
-            $field->attr('notes', $ipNotes);
-            $field->columnWidth = $ipWidth;
-            return $field;
+        $field = $this->wire('modules')->get("InputfieldCheckbox");
+        $field->name = $ipName;
+        $field->label = $ipTitle;
+        $field->label2 = ' '; // this sets the displayed label to nothing - needs the space or it reverts to displaying ->label
+        $field->required = $ipRequired;
+        $field->description = $ipDesc;
+        $field->attr('checked', $ipValue == '1' ? 'checked' : '' );
+        $field->value = $ipValue;
+        $field->attr('notes', $ipNotes);
+        $field->columnWidth = $ipWidth;
+        return $field;
     }
 
     private function _createInputfieldAsmSelect($aName, $aTitle, $aValue, $aDesc='', $aOptions='', $aNotes='', $aWidth=100, $aID=1) {
-            $field = $this->wire('modules')->get("InputfieldAsmSelect");
-            $field->name = $aName;
-            $field->label = $aTitle;
-            $field->description = $aDesc;
-            if($aName == 'enabledFields') {
-                foreach($this->wire('fields') as $currfield) {
-                    if($currfield->flags & Field::flagSystem) continue;
-                    if($currfield->type instanceof FieldtypeFile) $field->addOption($currfield->id, $currfield->name);
-                }
+        $field = $this->wire('modules')->get("InputfieldAsmSelect");
+        $field->name = $aName;
+        $field->label = $aTitle;
+        $field->description = $aDesc;
+        if($aName == 'enabledFields') {
+            foreach($this->wire('fields') as $currfield) {
+                if($currfield->flags & Field::flagSystem) continue;
+                if($currfield->type instanceof FieldtypeFile) $field->addOption($currfield->id, $currfield->name);
             }
-            if($aName == 'enabledTemplates') {
-                foreach($this->wire('templates') as $currtemplate) {
-                    if($currtemplate->flags & Template::flagSystem) continue;
-                    $field->addOption($currtemplate->id, $currtemplate->name);
-                }
+        }
+        if($aName == 'enabledTemplates') {
+            foreach($this->wire('templates') as $currtemplate) {
+                if($currtemplate->flags & Template::flagSystem) continue;
+                $field->addOption($currtemplate->id, $currtemplate->name);
             }
-            $field->attr('value', $aValue);
-            $field->columnWidth = $aWidth;
-            $field->setAsmSelectOption('sortable', false);
-            return $field;
+        }
+        $field->attr('value', $aValue);
+        $field->columnWidth = $aWidth;
+        $field->setAsmSelectOption('sortable', false);
+        return $field;
     }
 
 
     private function _createInputfieldPageListSelectMultiple($ipName, $ipTitle, $ipValue='', $ipDesc='', $ipOptions='', $ipNotes='', $ipWidth=100, $ipID=1) {
-            $field =  $this->wire('modules')->get("InputfieldPageListSelectMultiple");
-            $field->name = $ipName;
-            $field->label = $ipTitle;
-            $field->description = $ipDesc;
-            $field->attr('value', $ipValue);
-            $field->attr('id', $ipName . $ipID); // Allows us to add more of these with different IDs via AJAX
-            $field->set('unselectLabel', 'Unselect');
-            $field->columnWidth = $ipWidth;
-            //$field->sortable = false; // this doesn't work - is there an alternative of setAsmSelectOption('sortable', false); that works for PageListSelectMultiple fields ?
-            if($ipValue == 0) $field->collapsed = Inputfield::collapsedNo;
-            return $field;
+        $field =  $this->wire('modules')->get("InputfieldPageListSelectMultiple");
+        $field->name = $ipName;
+        $field->label = $ipTitle;
+        $field->description = $ipDesc;
+        $field->attr('value', $ipValue);
+        $field->attr('id', $ipName . $ipID); // Allows us to add more of these with different IDs via AJAX
+        $field->set('unselectLabel', 'Unselect');
+        $field->columnWidth = $ipWidth;
+        //$field->sortable = false; // this doesn't work - is there an alternative of setAsmSelectOption('sortable', false); that works for PageListSelectMultiple fields ?
+        if($ipValue == 0) $field->collapsed = Inputfield::collapsedNo;
+        return $field;
     }
 
     private function _createInputfieldHidden($tName, $tTitle, $tValue, $tDesc='', $ipOptions='') {
-            $field = $this->wire('modules')->get("InputfieldHidden");
-            $field->name = $tName;
-            $field->label = $tTitle;
-            $field->description = $tDesc;
-            $field->attr('value', $tValue);
-            return $field;
+        $field = $this->wire('modules')->get("InputfieldHidden");
+        $field->name = $tName;
+        $field->label = $tTitle;
+        $field->description = $tDesc;
+        $field->attr('value', $tValue);
+        return $field;
     }
 
     private function truncate($text, $length) {
         if(strlen($text) > $length) {
-            return substr( $text, 0, strrpos( substr( $text, 0, $length), '-' ) );
+            return substr($text, 0, strrpos(substr( $text, 0, $length), '-' ));
         }
-        else{
+        else {
             return $text;
         }
     }
 
     public function ___install() {
-            $data = array();
-            $module = 'ProcessCustomUploadNames';
-            $this->wire('modules')->saveModuleConfigData($module, $data);
+        $data = array();
+        $module = 'ProcessCustomUploadNames';
+        $this->wire('modules')->saveModuleConfigData($module, $data);
     }
 
 }
