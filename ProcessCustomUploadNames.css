@@ -1,0 +1,8 @@
+.cun-header {
+    border: none;
+    background: #ccc;
+    color: #000 !important;
+    outline: 1px solid #ccc;
+    outline-color: #ccc;
+    padding: 4px !important;
+}
