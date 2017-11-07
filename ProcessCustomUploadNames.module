@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.0.3',
+            'version' => '1.0.4',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -75,6 +75,10 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
      * Initialize the module
      */
     public function init() {
+    }
+
+
+    public function ready() {
 
         // Check for AJAX request and process as appropriate
         if($this->wire('config')->ajax) {
@@ -85,10 +89,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
         //only load js file if we're on the module config settings for this module, rather than any other module
         if($this->className() == $this->wire('input')->get->name) $this->addHookAfter("ProcessModule::executeEdit", $this, "addScript");
-    }
 
-
-    public function ready() {
 
         if($this->ruleData!='') {
             //page in the admin
