@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.0.5',
+            'version' => '1.0.6',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -163,15 +163,19 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             foreach($editedPage->fields as $field) {
 
                 if($field->type instanceof FieldtypeFile) {
-                    foreach($editedPage->{$field->name} as $file) {
-                        $files[$file->name] = $field->id; // add filename with respective fieldid to array
+                    if(count($editedPage->{$field->name})) {
+                        foreach($editedPage->{$field->name} as $file) {
+                            $files[$file->name] = $field->id; // add filename with respective fieldid to array
+                        }
                     }
                 }
                 elseif($field->type instanceof FieldtypeFieldsetPage) {
                     foreach($editedPage->{$field->name}->fields as $rf) {
                         if($rf->type instanceof FieldtypeFile) {
-                            foreach($editedPage->{$field->name}->{$rf->name} as $file) {
-                                $files[$file->name] = $editedPage->{$field->name}->id.'|'.$field->id; // add filename with respective fieldid to array
+                            if(count($editedPage->{$field->name}->{$rf->name})) {
+                                foreach($editedPage->{$field->name}->{$rf->name} as $file) {
+                                    $files[$file->name] = $editedPage->{$field->name}->id.'|'.$field->id; // add filename with respective fieldid to array
+                                }
                             }
                         }
                     }
@@ -185,8 +189,10 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
                         foreach($repeater->fields as $rf) {
                             if($rf->type instanceof FieldtypeFile) {
-                                foreach($repeater->$rf as $file) {
-                                    $files[$file->name] = $repeater->id.'|'.$rf->id; // add filename with respective repeater pageid and fieldid to array
+                                if(count($repeater->{$rf->name})) {
+                                    foreach($repeater->{$rf->name} as $file) {
+                                        $files[$file->name] = $repeater->id.'|'.$rf->id; // add filename with respective repeater pageid and fieldid to array
+                                    }
                                 }
                             }
                         }
@@ -268,8 +274,10 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                         $file = $filePage->$field->get("name=$filename");
                         $filePage->$field->trackChange("filename");
                         if($field->type instanceof FieldtypeImage) {
-                            foreach($file->getVariations() as $imageVariation) {
-                                rename($imageVariation->filename, pathinfo($newFilename, PATHINFO_DIRNAME) . '/' . pathinfo($newFilename, PATHINFO_FILENAME) . str_replace(pathinfo($fullFilename, PATHINFO_FILENAME), '', pathinfo($imageVariation->filename, PATHINFO_FILENAME)) . '.' . pathinfo($fullFilename, PATHINFO_EXTENSION));
+                            if(!is_null($file)) {
+                                foreach($file->getVariations() as $imageVariation) {
+                                    rename($imageVariation->filename, pathinfo($newFilename, PATHINFO_DIRNAME) . '/' . pathinfo($newFilename, PATHINFO_FILENAME) . str_replace(pathinfo($fullFilename, PATHINFO_FILENAME), '', pathinfo($imageVariation->filename, PATHINFO_FILENAME)) . '.' . pathinfo($fullFilename, PATHINFO_EXTENSION));
+                                }
                             }
                             //iterate through all textarea fields on the page looking for embedded versions of images to rename
                             foreach($editedPage->fields->find("type=FieldtypeTextarea") as $textareafield) {
@@ -313,7 +321,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                                 }
                             }
                         }
-                        $file->rename($newFilename);
+                        if(!is_null($file)) $file->rename($newFilename);
                     }
                 }
                 break; // need to break out of $rules foreach once there has been a match and the file has been renamed.
@@ -441,8 +449,10 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                 foreach($p->$field as $repeater) {
                     foreach($repeater->fields as $rf) {
                         if($rf->type instanceof FieldtypeFile) {
-                            foreach($repeater->$rf as $file) {
-                                $files[] = $file->name;
+                            if(count($repeater->{$rf->name})) {
+                                foreach($repeater->{$rf->name} as $file) {
+                                    $files[] = $file->name;
+                                }
                             }
                         }
                     }
