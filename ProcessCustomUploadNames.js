@@ -5,7 +5,8 @@ $(document).ready(function() {
     $('#RenameRules .InputfieldWrapper').each(function() {
         $(this).prepend('<label style="cursor:move;" class="cun-header InputfieldHeader" for="">&nbsp;<span class="ui-icon ui-icon-trash InputfieldRepeaterTrash deleterow" style="display: block;float:right;cursor:pointer;">Delete</span><span class="ui-icon ui-icon-arrowthick-2-n-s InputfieldRepeaterDrag"></span></label>');
         $(this).css("margin-top", "20px");
-        $('script:not([src^=http])').remove(); // removes inline script that was causing duplication of Add button for the Enabled Pages setting when drag/drop ordering.
+        // this was breaking theming etc in Tracy ACE editor and it also doesn't seem like it is needed anymore?
+        //$('script:not([src^=http])').remove(); // removes inline script that was causing duplication of Add button for the Enabled Pages setting when drag/drop ordering.
     });
 
 
