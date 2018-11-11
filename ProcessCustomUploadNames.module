@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.0.9',
+            'version' => '1.0.10',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -157,7 +157,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         }
 
 
-        $editedPage->of(false);
+        //$editedPage->of(false);
 
         if($action == 'upload') {
             //if page belongs to a repeater or pagetable field
@@ -195,7 +195,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
                         //make sure repeater item actually exists already, which is important when you have added items beyond those initially rendered.
                         //fixes this issue: https://github.com/ryancramerdesign/ProcessWire/issues/1541
-                        if(!$repeater->id) continue;
+                        if(!is_object($repeater) || !$repeater->id) continue;
 
                         foreach($repeater->fields as $rf) {
                             if($rf->type instanceof FieldtypeFile) {
