@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.0.10',
+            'version' => '1.0.11',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -291,7 +291,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                                 }
                             }
                             //iterate through all textarea fields on the page looking for embedded versions of images to rename
-                            foreach($editedPage->fields->find("type=FieldtypeTextarea") as $textareafield) {
+                            foreach($editedPage->fields->find("type=FieldtypeTextarea|FieldtypeTextareaLanguage") as $textareafield) {
                                 $taf = $textareafield->name;
                                 if(strpos($editedPage->$taf,'<img') === false) continue; //continue to next loop if there are no images are embedded in this field's html
                                 $pagedom = new DOMDocument();
@@ -312,7 +312,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                             foreach($editedPage->fields->find("type=FieldtypeRepeater|FieldtypeRepeaterMatrix") as $repeater) {
                                 foreach($editedPage->$repeater as $rf) {
                                     //iterate through all textarea fields in the repeater looking for embedded versions of images to rename
-                                    foreach($rf->fields->find("type=FieldtypeTextarea") as $textareafield) {
+                                    foreach($rf->fields->find("type=FieldtypeTextarea|FieldtypeTextareaLanguage") as $textareafield) {
                                         $taf = $textareafield->name;
                                         if(strpos($rf->$taf,'<img') === false) continue; //continue to next loop if there are no images are embedded in this field's html
                                         $repeaterdom = new DOMDocument();
