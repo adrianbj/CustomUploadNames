@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.0.12',
+            'version' => '1.0.13',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -293,7 +293,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                             //iterate through all textarea fields on the page looking for embedded versions of images to rename
                             foreach($editedPage->fields->find("type=FieldtypeTextarea|FieldtypeTextareaLanguage") as $textareafield) {
                                 $taf = $textareafield->name;
-                                if(strpos($editedPage->$taf,'<img') === false) continue; //continue to next loop if there are no images are embedded in this field's html
+                                if(strpos($editedPage->$taf,'<img') === false && strpos($editedPage->$taf,'<a') === false) continue; //continue to next loop if there are no images are embedded in this field's html
                                 $pagedom = new DOMDocument();
                                 $pagedom->loadHTML(mb_convert_encoding($editedPage->$taf, 'HTML-ENTITIES', 'UTF-8'));
                                 foreach($pagedom->getElementsByTagName('img') as $img) {
@@ -302,6 +302,14 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                                         $parts = explode("/", pathinfo($newFilename, PATHINFO_DIRNAME));
                                         $pid = end($parts);
                                         $img->setAttribute('src', $this->wire('pages')->get($pid)->filesManager()->url() . pathinfo($newFilename, PATHINFO_FILENAME) . str_replace(pathinfo($fullFilename, PATHINFO_FILENAME), '', pathinfo($img->getAttribute('src'), PATHINFO_FILENAME)) . '.' . pathinfo($fullFilename, PATHINFO_EXTENSION));
+                                    }
+                                }
+                                foreach($pagedom->getElementsByTagName('a') as $link) {
+                                    //if $link is the same image as (or a variation of) the one we are currently looping through ($fullFilename), then rename it
+                                    if(pathinfo($fullFilename, PATHINFO_BASENAME) == pathinfo($link->getAttribute('href'), PATHINFO_BASENAME) || $this->isImgVarOf(pathinfo($fullFilename, PATHINFO_BASENAME), pathinfo($link->getAttribute('href'), PATHINFO_BASENAME))) {
+                                        $parts = explode("/", pathinfo($newFilename, PATHINFO_DIRNAME));
+                                        $pid = end($parts);
+                                        $link->setAttribute('href', $this->wire('pages')->get($pid)->filesManager()->url() . pathinfo($newFilename, PATHINFO_FILENAME) . str_replace(pathinfo($fullFilename, PATHINFO_FILENAME), '', pathinfo($link->getAttribute('href'), PATHINFO_FILENAME)) . '.' . pathinfo($fullFilename, PATHINFO_EXTENSION));
                                     }
                                 }
                                 $editedPage->of(false);
@@ -314,7 +322,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                                     //iterate through all textarea fields in the repeater looking for embedded versions of images to rename
                                     foreach($rf->fields->find("type=FieldtypeTextarea|FieldtypeTextareaLanguage") as $textareafield) {
                                         $taf = $textareafield->name;
-                                        if(strpos($rf->$taf,'<img') === false) continue; //continue to next loop if there are no images are embedded in this field's html
+                                        if(strpos($rf->$taf,'<img') === false && strpos($rf->$taf,'<a') === false) continue; //continue to next loop if there are no images are embedded in this field's html
                                         $repeaterdom = new DOMDocument();
                                         $repeaterdom->loadHTML(mb_convert_encoding($rf->$taf, 'HTML-ENTITIES', 'UTF-8'));
                                         foreach($repeaterdom->getElementsByTagName('img') as $img) {
@@ -323,6 +331,14 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                                                 $parts = explode("/", pathinfo($newFilename, PATHINFO_DIRNAME));
                                                 $pid = end($parts);
                                                 $img->setAttribute('src', $this->wire('pages')->get($pid)->filesManager()->url() . pathinfo($newFilename, PATHINFO_FILENAME) . str_replace(pathinfo($fullFilename, PATHINFO_FILENAME), '', pathinfo($img->getAttribute('src'), PATHINFO_FILENAME)) . '.' . pathinfo($fullFilename, PATHINFO_EXTENSION));
+                                            }
+                                        }
+                                        foreach($repeaterdom->getElementsByTagName('a') as $link) {
+                                            //if $link is the same image as (or a variation of) the one we are currently looping through ($fullFilename), then rename it
+                                            if(pathinfo($fullFilename, PATHINFO_BASENAME) == pathinfo($link->getAttribute('href'), PATHINFO_BASENAME) || $this->isImgVarOf(pathinfo($fullFilename, PATHINFO_BASENAME), pathinfo($link->getAttribute('href'), PATHINFO_BASENAME))) {
+                                                $parts = explode("/", pathinfo($newFilename, PATHINFO_DIRNAME));
+                                                $pid = end($parts);
+                                                $link->setAttribute('href', $this->wire('pages')->get($pid)->filesManager()->url() . pathinfo($newFilename, PATHINFO_FILENAME) . str_replace(pathinfo($fullFilename, PATHINFO_FILENAME), '', pathinfo($link->getAttribute('href'), PATHINFO_FILENAME)) . '.' . pathinfo($fullFilename, PATHINFO_EXTENSION));
                                             }
                                         }
                                         $rf->of(false);
