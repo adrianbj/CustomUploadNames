@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.0.11',
+            'version' => '1.0.12',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -227,6 +227,9 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                 $repeaterPage->of(false);
             }
 
+            $filePage = $repeaterPage ? $repeaterPage : $editedPage;
+            $filePage->of(false);
+
             //ruleData is a json string that we need to turn into an object
             $rules = json_decode($this->ruleData);
 
@@ -248,7 +251,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                 if($rule->renameOnSave != '1' && $action == 'save' && strpos(pathinfo($filename, PATHINFO_FILENAME),'_upload_tmp') === false) break; // _upload_tmp set when the eval'd filename format is not available yet because field is empty.
 
                 //build the new filename
-                $fullFilename = $this->wire('pages')->get($pageid)->filesManager()->path() . basename($filename);
+                $fullFilename = $filePage->filesManager()->path() . basename($filename);
                 $newFilename = $this->createNewFilename($fullFilename, $rule->filenameFormat, $rule->filenameLength, $editedPage, $fieldid, $repeaterPage);
 
                 //rename the file
@@ -266,7 +269,6 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                     else{
                         $filenameSansNum = $fullFilename;
                     }
-
                     $parts = explode("-", pathinfo($newFilename, PATHINFO_FILENAME));
                     $newFilenameNum = end($parts);
                     if(is_numeric($newFilenameNum)) {
@@ -280,8 +282,6 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
                     if($fullFilename != $newFilename) {
                         $field = $this->wire('fields')->get($fieldid);
-                        $filePage = $repeaterPage ? $repeaterPage : $editedPage;
-                        $filePage->of(false);
                         $file = $filePage->$field->get("name=$filename");
                         $filePage->$field->trackChange("filename");
                         if($field->type instanceof FieldtypeImage) {
@@ -332,7 +332,11 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                                 }
                             }
                         }
-                        if(!is_null($file)) $file->rename($newFilename);
+
+                        if(!is_null($file)) {
+                            $file->rename(pathinfo($newFilename, PATHINFO_BASENAME));
+                            $filePage->save($field->name);
+                        }
                     }
                 }
                 break; // need to break out of $rules foreach once there has been a match and the file has been renamed.
@@ -389,7 +393,6 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
         // get the eval'd filename
         $evalednewname = @eval('return "'.$newname.'";');
-
         $page->of(false); //not sure if turning off is really necessarily, but seems safer
 
         // if any of the eval'd variables (PW fields etc) are empty we should treat this as a temp name until fields are populated
@@ -424,15 +427,14 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                 $n++;
                 $custom_n = str_pad($n, substr_count($newname, '#')+1, '0', STR_PAD_LEFT);
                 $finalFilename = $path_parts['dirname'] . '/' . $this->wire('sanitizer')->pageName(preg_replace("/\#+/", "$1".$custom_n, $newname), Sanitizer::translate) .  '.' . $path_parts['extension'];
-            } while(in_array(pathinfo($finalFilename, PATHINFO_BASENAME), $this->getAllFilenames($page)) || file_exists($finalFilename) || file_exists(str_replace($path_parts['dirname'], $page->filesManager()->path(), $finalFilename)));
+            } while(in_array(pathinfo($finalFilename, PATHINFO_BASENAME), $this->getAllFilenames($filePage)) || file_exists($finalFilename) || file_exists(str_replace($path_parts['dirname'], $filePage->filesManager()->path(), $finalFilename)));
         }
         else{
             do {
                 $finalFilename = $path_parts['dirname'] . '/' . $this->wire('sanitizer')->pageName($newname, Sanitizer::translate) . ($n === 0 ? '' : '-' . $n) .  '.' . $path_parts['extension'];
                 $n++;
-            } while(in_array(pathinfo($finalFilename, PATHINFO_BASENAME), $this->getAllFilenames($page)) || file_exists($finalFilename) || file_exists(str_replace($path_parts['dirname'], $page->filesManager()->path(), $finalFilename)));
+            } while(in_array(pathinfo($finalFilename, PATHINFO_BASENAME), $this->getAllFilenames($filePage)) || file_exists($finalFilename) || file_exists(str_replace($path_parts['dirname'], $filePage->filesManager()->path(), $finalFilename)));
         }
-
         return $finalFilename;
     }
 
