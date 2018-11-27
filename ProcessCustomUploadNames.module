@@ -175,7 +175,9 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                 if($field->type instanceof FieldtypeFile) {
                     if(count($editedPage->{$field->name})) {
                         foreach($editedPage->{$field->name} as $file) {
-                            $files[$file->name] = $field->id; // add filename with respective fieldid to array
+                            if (is_object($file) && $file->id && $file->name){
+                                $files[$file->name] = $field->id; // add filename with respective fieldid to array
+                            }
                         }
                     }
                 }
@@ -184,7 +186,9 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                         if($rf->type instanceof FieldtypeFile) {
                             if(count($editedPage->{$field->name}->{$rf->name})) {
                                 foreach($editedPage->{$field->name}->{$rf->name} as $file) {
-                                    $files[$file->name] = $editedPage->{$field->name}->id.'|'.$field->id; // add filename with respective fieldid to array
+                                    if (is_object($file) && $file->id && $file->name){
+                                        $files[$file->name] = $editedPage->{$field->name}->id.'|'.$field->id; // add filename with respective fieldid to array
+                                    }
                                 }
                             }
                         }
