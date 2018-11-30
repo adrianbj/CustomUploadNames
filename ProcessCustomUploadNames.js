@@ -65,7 +65,7 @@ $(document).ready(function() {
                     data[i]['enabledFields'] = $(this).find('select[id=Inputfield_enabledFields]').val();
                     data[i]['enabledTemplates'] = $(this).find('select[id=Inputfield_enabledTemplates]').val();
                     //if($(this).find('input[id=enabledPages'+i+']').length !== 0) data[i]['enabledPages'] = $(this).find('input[id=enabledPages'+i+']').val().split(",");
-                    data[i]['enabledPages'] = $(this).find('input[id=enabledPages'+i+']').val().split(",");
+                    data[i]['enabledPages'] = $('input[id=enabledPages'+i+']').val().split(",");
                     data[i]['fileExtensions'] = $(this).find('input[name=fileExtensions]').val();
                     data[i]['filenameFormat'] = $(this).find('input[name=filenameFormat]').val();
                     data[i]['filenameLength'] = $(this).find('input[name=filenameLength]').val();
