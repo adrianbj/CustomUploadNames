@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.1.1',
+            'version' => '1.1.2',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -644,9 +644,8 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
     protected function addScript($event) {
         $conf = $this->getModuleInfo();
-        $version = (int) $conf['version'];
-        wire("config")->scripts->add($this->wire('config')->urls->ProcessCustomUploadNames . "ProcessCustomUploadNames.js?v={$version}");
-        wire("config")->styles->add($this->wire('config')->urls->ProcessCustomUploadNames . "ProcessCustomUploadNames.css?v={$version}");
+        wire("config")->scripts->add($this->wire('config')->urls->ProcessCustomUploadNames . "ProcessCustomUploadNames.js?v={$conf['version']}");
+        wire("config")->styles->add($this->wire('config')->urls->ProcessCustomUploadNames . "ProcessCustomUploadNames.css?v={$conf['version']}");
     }
 
     private function addRule($id) {
