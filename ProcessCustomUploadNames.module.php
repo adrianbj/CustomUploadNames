@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.1.2',
+            'version' => '1.1.3',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -432,19 +432,26 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
     // gets filenames for all files/images on the page, including inside repeaters
     private function getAllFilenames($p) {
+        $p->of(false);
         $files = array();
         foreach($p->fields as $field) {
 
             if($field->type instanceof FieldtypeFile) {
-                foreach($p->{$field->name} as $file) {
-                    $files[] = $file->name;
+                $fieldObject = $p->getUnformatted($field->name);
+                if(count($fieldObject)) {
+                    foreach($fieldObject as $file) {
+                        $files[] = $file->name;
+                    }
                 }
             }
             elseif($field->type instanceof FieldtypeFieldsetPage) {
                 foreach($p->{$field->name}->fields as $rf) {
                     if($rf->type instanceof FieldtypeFile) {
-                        foreach($p->{$field->name}->{$rf->name} as $file) {
-                            $files[] = $file->name;
+                        $fieldObject = $p->{$field->name}->getUnformatted($rf->name);
+                        if(count($fieldObject)) {
+                            foreach($fieldObject as $file) {
+                                $files[] = $file->name;
+                            }
                         }
                     }
                 }
@@ -453,8 +460,9 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                 foreach($p->$field as $repeater) {
                     foreach($repeater->fields as $rf) {
                         if($rf->type instanceof FieldtypeFile) {
-                            if(count($repeater->{$rf->name})) {
-                                foreach($repeater->{$rf->name} as $file) {
+                            $fieldObject = $repeater->getUnformatted($rf->name);
+                            if(count($fieldObject)) {
+                                foreach($fieldObject as $file) {
                                     if(!$file) continue;
                                     $files[] = $file->name;
                                 }
