@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.1.3',
+            'version' => '1.1.4',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -173,8 +173,9 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             foreach($editedPage->fields as $field) {
 
                 if($field->type instanceof FieldtypeFile) {
-                    if(count($editedPage->{$field->name})) {
-                        foreach($editedPage->{$field->name} as $file) {
+                    $fieldObject = $editedPage->getUnformatted($field->name);
+                    if(count($fieldObject)) {
+                        foreach($fieldObject as $file) {
                             $files[$file->name] = $field->id; // add filename with respective fieldid to array
                         }
                     }
@@ -182,8 +183,9 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                 elseif($field->type instanceof FieldtypeFieldsetPage) {
                     foreach($editedPage->{$field->name}->fields as $rf) {
                         if($rf->type instanceof FieldtypeFile) {
-                            if(count($editedPage->{$field->name}->{$rf->name})) {
-                                foreach($editedPage->{$field->name}->{$rf->name} as $file) {
+                            $fieldObject = $editedPage->{$field->name}->getUnformatted($rf->name);
+                            if(count($fieldObject)) {
+                                foreach($fieldObject as $file) {
                                     $files[$file->name] = $editedPage->{$field->name}->id.'|'.$field->id; // add filename with respective fieldid to array
                                 }
                             }
@@ -199,8 +201,9 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
                         foreach($repeater->fields as $rf) {
                             if($rf->type instanceof FieldtypeFile) {
-                                if(count($repeater->{$rf->name})) {
-                                    foreach($repeater->{$rf->name} as $file) {
+                                $fieldObject = $repeater->getUnformatted($rf->name);
+                                if(count($fieldObject)) {
+                                    foreach($fieldObject as $file) {
                                         if(!$file) continue;
                                         $files[$file->name] = $repeater->id.'|'.$rf->id; // add filename with respective repeater pageid and fieldid to array
                                     }
