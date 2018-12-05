@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.1.5',
+            'version' => '1.1.4',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -169,7 +169,50 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             }
         }
         elseif($action == 'save' && is_object($editedPage->fields)) {
-            $files = $this->getAllFilenames($editedPage, true);
+            $files = array();
+            foreach($editedPage->fields as $field) {
+
+                if($field->type instanceof FieldtypeFile) {
+                    $fieldObject = $editedPage->getUnformatted($field->name);
+                    if(count($fieldObject)) {
+                        foreach($fieldObject as $file) {
+                            $files[$file->name] = $field->id; // add filename with respective fieldid to array
+                        }
+                    }
+                }
+                elseif($field->type instanceof FieldtypeFieldsetPage) {
+                    foreach($editedPage->{$field->name}->fields as $rf) {
+                        if($rf->type instanceof FieldtypeFile) {
+                            $fieldObject = $editedPage->{$field->name}->getUnformatted($rf->name);
+                            if(count($fieldObject)) {
+                                foreach($fieldObject as $file) {
+                                    $files[$file->name] = $editedPage->{$field->name}->id.'|'.$field->id; // add filename with respective fieldid to array
+                                }
+                            }
+                        }
+                    }
+                }
+                elseif($field->type instanceof FieldtypeRepeater) {
+                    foreach($editedPage->{$field->name} as $repeater) {
+
+                        //make sure repeater item actually exists already, which is important when you have added items beyond those initially rendered.
+                        //fixes this issue: https://github.com/ryancramerdesign/ProcessWire/issues/1541
+                        if(!is_object($repeater) || !$repeater->id) continue;
+
+                        foreach($repeater->fields as $rf) {
+                            if($rf->type instanceof FieldtypeFile) {
+                                $fieldObject = $repeater->getUnformatted($rf->name);
+                                if(count($fieldObject)) {
+                                    foreach($fieldObject as $file) {
+                                        if(!$file) continue;
+                                        $files[$file->name] = $repeater->id.'|'.$rf->id; // add filename with respective repeater pageid and fieldid to array
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         if(empty($files)) return;
@@ -391,7 +434,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
 
     // gets filenames for all files/images on the page, including inside repeaters
-    private function getAllFilenames($p, $withId = false) {
+    private function getAllFilenames($p) {
         $p->of(false);
         $files = array();
         foreach($p->fields as $field) {
@@ -400,12 +443,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                 $fieldObject = $p->getUnformatted($field->name);
                 if(count($fieldObject)) {
                     foreach($fieldObject as $file) {
-                        if($withId) {
-                            $files[$file->name] = $field->id; // add filename with respective fieldid to array
-                        }
-                        else {
-                            $files[] = $file->name;
-                        }
+                        $files[] = $file->name;
                     }
                 }
             }
@@ -415,36 +453,21 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                         $fieldObject = $p->{$field->name}->getUnformatted($rf->name);
                         if(count($fieldObject)) {
                             foreach($fieldObject as $file) {
-                                if($withId) {
-                                    $files[$file->name] = $p->{$field->name}->id.'|'.$field->id; // add filename with respective fieldid to array
-                                }
-                                else {
-                                    $files[] = $file->name;
-                                }
+                                $files[] = $file->name;
                             }
                         }
                     }
                 }
             }
             elseif($field->type instanceof FieldtypeRepeater) {
-                foreach($p->{$field->name} as $repeater) {
-
-                    //make sure repeater item actually exists already, which is important when you have added items beyond those initially rendered.
-                    //fixes this issue: https://github.com/ryancramerdesign/ProcessWire/issues/1541
-                    if(!is_object($repeater) || !$repeater->id) continue;
-
+                foreach($p->$field as $repeater) {
                     foreach($repeater->fields as $rf) {
                         if($rf->type instanceof FieldtypeFile) {
                             $fieldObject = $repeater->getUnformatted($rf->name);
                             if(count($fieldObject)) {
                                 foreach($fieldObject as $file) {
                                     if(!$file) continue;
-                                    if($withId) {
-                                        $files[$file->name] = $repeater->id.'|'.$rf->id; // add filename with respective repeater pageid and fieldid to array
-                                    }
-                                    else {
-                                        $files[] = $file->name;
-                                    }
+                                    $files[] = $file->name;
                                 }
                             }
                         }
