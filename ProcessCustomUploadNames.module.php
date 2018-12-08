@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.1.5',
+            'version' => '1.2.0',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -49,6 +49,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
      */
     static public function getDefaultData() {
             return array(
+                "getVideoThumbs" => 1,
                 "tempDisabled" => "",
                 "enabledFields" => "",
                 "enabledPages" => "",
@@ -101,7 +102,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             else {
                 $this->addHookAfter('Pagefile::install', $this, 'customRenameUploads');
             }
-            $this->addHookAfter('Pages::saveReady', $this, 'customRenameUploads');
+            $this->addHookBefore('Pages::saved', $this, 'customRenameUploads');
         }
     }
 
@@ -162,10 +163,10 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         if($action == 'upload') {
             //if page belongs to a repeater or pagetable field
             if(method_exists($this->wire('pages')->get($pageid), 'getForPage') || $this->wire('input')->get->context == 'PageTable') {
-                $files = array($pagefile->filename => $pageid . '|' . $fieldid); // add filename with respective repeater/pagetable pageid and fieldid to array
+                $files[] = $pagefile->filename . '|' . $pageid . '|' . $fieldid; // add filename with respective repeater/pagetable pageid and fieldid to array
             }
             else {
-                $files = array($pagefile->filename => $fieldid); // add filename with respective fieldid to array
+                $files[] = $pagefile->filename . '|' . $fieldid; // add filename with respective fieldid to array
             }
         }
         elseif($action == 'save' && is_object($editedPage->fields)) {
@@ -174,17 +175,22 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
         if(empty($files)) return;
 
-        foreach($files as $filename => $fieldid) {
-            //quick fix to prevent this module from renaming video thumbs from GetVideoThumbs module
-            if(strpos($filename,'youtube') !== false || strpos($filename,'vimeo') !== false) return;
+        foreach($files as $file) {
 
             //if it was a repeater field updating on save, then need to get pageid of repeater field
             $repeaterPage = null;
-            if(strpos($fieldid,'|') !== false) {
-                $repeaterid = strstr($fieldid, '|', true);
-                $fieldid = str_replace('|', '', strstr($fieldid, '|'));
+            $elements = explode('|', $file);
+            $filename = $elements[0];
+            $repeaterid = isset($elements[2]) ? $elements[1] : null;
+            $fieldid = isset($elements[2]) ? $elements[2] : $elements[1];
+            if($repeaterid) {
                 $repeaterPage = $this->wire('pages')->get($repeaterid);
                 $repeaterPage->of(false);
+            }
+
+            //quick fix to prevent this module from renaming video thumbs from GetVideoThumbs module
+            if($this->wire('modules')->isInstalled('ProcessGetVideoThumbs') && $this->data['getVideoThumbs'] == 1) {
+                if(strpos($filename,'youtube') !== false || strpos($filename,'vimeo') !== false) return;
             }
 
             $filePage = $repeaterPage ? $repeaterPage : $editedPage;
@@ -401,7 +407,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                 if(count($fieldObject)) {
                     foreach($fieldObject as $file) {
                         if($withId) {
-                            $files[$file->name] = $field->id; // add filename with respective fieldid to array
+                            $files[] = $file->name . '|' . $field->id; // add filename with respective fieldid to array
                         }
                         else {
                             $files[] = $file->name;
@@ -416,7 +422,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                         if(count($fieldObject)) {
                             foreach($fieldObject as $file) {
                                 if($withId) {
-                                    $files[$file->name] = $p->{$field->name}->id.'|'.$field->id; // add filename with respective fieldid to array
+                                    $files[] = $file->name.'|'.$p->{$field->name}->id.'|'.$field->id; // add filename with respective fieldid to array
                                 }
                                 else {
                                     $files[] = $file->name;
@@ -440,7 +446,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                                 foreach($fieldObject as $file) {
                                     if(!$file) continue;
                                     if($withId) {
-                                        $files[$file->name] = $repeater->id.'|'.$rf->id; // add filename with respective repeater pageid and fieldid to array
+                                        $files[] = $file->name.'|'.$repeater->id.'|'.$rf->id; // add filename with respective repeater pageid and fieldid to array
                                     }
                                     else {
                                         $files[] = $file->name;
@@ -502,6 +508,16 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             // this is a container for fields, basically like a fieldset
             $fields = new InputfieldWrapper();
 
+            if($this->wire('modules')->isInstalled('ProcessGetVideoThumbs')) {
+                $f = $this->wire('modules')->get("InputfieldCheckbox");
+                $f->attr('name', 'getVideoThumbs');
+                $f->label = __('Ignore Youtube and Vimeo images', __FILE__);
+                $f->description = __('This prevents images added by the Get Video Thumbs module from being renamed.', __FILE__);
+                $f->notes = __('Note that having this checked will prevent any images containing "youtube" or "vimeo" in the filename from being renamed.', __FILE__);
+                $f->attr('checked', $data['getVideoThumbs'] == '1' ? 'checked' : '');
+                $fields->add($f);
+            }
+
             // Populate the $fieldsModel with data for each field
             $fieldsModel = array(
                     'tempDisabled' => array(
@@ -513,7 +529,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                                     'fieldset'=>'renameRules',
                                     'fieldsetname'=>'Rename Rules',
                                     'fieldsetdescription'=>"&bull; Add as many different rules as you need.\n&bull; If a rule option is left blank, the rule with be applied to all fields/templates/pages/extensions.\n&bull; Leave Filename Format blank to prevent renaming for a specific field/template/page combo, overriding a more general rule.\n&bull; Rules are processed in order, so put more specific rules before more general ones. You can drag to change the order of rules as needed.\n&bull; The following variables can be used in the filename format: ".'$page, $template, $field, and $file. '."For some of these (eg. ".'$field'."->description), if they haven't been filled out and saved prior to uploading the image, renaming won't occur on upload, but will happen on page save - if you inserted it into an RTE/HTML field before page save, then the link will be automatically updated).\n\nSome example filename formats:\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;".'$page->title'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;".'mysite-{$template->name}-images'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;".'$field->label'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;".'$file->description'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;".'{$page->name}-{$file->filesize}-kb'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;".'prefix-[Y-m-d_H-i-s]-suffix (anything inside square brackets is is considered to be a PHP date format for the current date/time)'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;".'randstring[n] (where n is the number of characters you want in the string)'."\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;".'### (custom number mask, eg. 001 if more than one image with same name on a page. This is an enhanced version of the automatic addition of numbers if required)'."\n\n&bull; If 'Rename on Save' is checked files will be renamed again each time a page is saved (admin or front-end via API). WARNING: this setting will break any direct links to the old filename in your template files. However, images inserted into RTE/HTML fields on the same page will have their links automatically updated.",
-                                    'width'=>19),
+                                    'width'=>25),
                     'enabledFields' => array(
                                     'label' => "Enabled Fields",
                                     'desc' => "Select none for all fields.",
@@ -521,7 +537,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                                     'options' => "",
                                     'notes' => "",
                                     'fieldset'=>'renameRules',
-                                    'width' => 27),
+                                    'width' => 25),
                     'enabledTemplates' => array(
                                     'label'=>"Enabled Templates",
                                     'desc'=>"Select none for all templates.",
@@ -529,7 +545,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                                     'options' => "",
                                     'notes' => "",
                                     'fieldset'=>'renameRules',
-                                    'width'=>27),
+                                    'width'=>25),
                     'enabledPages' => array(
                                     'label'=>"Enabled Pages",
                                     'desc'=>"AND THEIR CHILDREN Select none for all pages.",
@@ -537,7 +553,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                                     'options' => "",
                                     'notes' => "",
                                     'fieldset'=>'renameRules',
-                                    'width'=>27),
+                                    'width'=>25),
                     'fileExtensions' => array(
                                     'label'=>"File Extensions",
                                     'desc'=>"Comma separated (eg. png, jpg). Leave empty for all extensions.",
@@ -612,10 +628,10 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             if(!empty($data['renameRules'])) {
                 foreach ($data['renameRules'] as $k => $rule) {
                     $rulewrapper = new InputfieldWrapper();
-                    $rulewrapper->add(self::_createInputfieldCheckbox('tempDisabled', 'Temporarily Disabled', $rule['tempDisabled'], $fieldsModel['tempDisabled']['desc'], '', '', 19));
-                    $rulewrapper->add(self::_createInputfieldAsmSelect('enabledFields', 'Enabled Fields', $rule['enabledFields'], $fieldsModel['enabledFields']['desc'], '', '', 27, $k));
-                    $rulewrapper->add(self::_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates', $rule['enabledTemplates'], $fieldsModel['enabledTemplates']['desc'], '', '', 27, $k));
-                    $rulewrapper->add(self::_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages', $rule['enabledPages'], $fieldsModel['enabledPages']['desc'], '', '', 27, $k));
+                    $rulewrapper->add(self::_createInputfieldCheckbox('tempDisabled', 'Temporarily Disabled', $rule['tempDisabled'], $fieldsModel['tempDisabled']['desc'], '', '', 25));
+                    $rulewrapper->add(self::_createInputfieldAsmSelect('enabledFields', 'Enabled Fields', $rule['enabledFields'], $fieldsModel['enabledFields']['desc'], '', '', 25, $k));
+                    $rulewrapper->add(self::_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates', $rule['enabledTemplates'], $fieldsModel['enabledTemplates']['desc'], '', '', 25, $k));
+                    $rulewrapper->add(self::_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages', $rule['enabledPages'], $fieldsModel['enabledPages']['desc'], '', '', 25, $k));
                     $rulewrapper->add(self::_createInputfieldText('fileExtensions', 'File Extensions', $rule['fileExtensions'], $fieldsModel['fileExtensions']['desc'], '', '', 25));
                     $rulewrapper->add(self::_createInputfieldText('filenameFormat', 'Filename Format', $rule['filenameFormat'], $fieldsModel['filenameFormat']['desc'], '', '', 25));
                     $rulewrapper->add(self::_createInputfieldText('filenameLength', 'Filename Length', $rule['filenameLength'], $fieldsModel['filenameLength']['desc'], '', '', 25));
@@ -623,9 +639,8 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
                     $renameRules->add($rulewrapper);
                 }
-            } else {
-
             }
+
             return $fields;
     }
 
@@ -638,10 +653,10 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
     private function addRule($id) {
         $fields = new InputfieldWrapper();
-        $fields->add($this->_createInputfieldCheckbox('tempDisabled', 'Temporarily Disabled', '', 'Check to disable this rule without deleting it.', '', '', 19));
-        $fields->add($this->_createInputfieldAsmSelect('enabledFields', 'Enabled Fields', '', 'Select none for all fields.', '', '', 27, $id));
-        $fields->add($this->_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates', '', 'Select none for all templates.', '', '', 27, $id));
-        $fields->add($this->_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages', '', 'AND THEIR CHILDREN Select none for all pages.', '', '', 27, $id));
+        $fields->add($this->_createInputfieldCheckbox('tempDisabled', 'Temporarily Disabled', '', 'Check to disable this rule without deleting it.', '', '', 25));
+        $fields->add($this->_createInputfieldAsmSelect('enabledFields', 'Enabled Fields', '', 'Select none for all fields.', '', '', 25, $id));
+        $fields->add($this->_createInputfieldAsmSelect('enabledTemplates', 'Enabled Templates', '', 'Select none for all templates.', '', '', 25, $id));
+        $fields->add($this->_createInputfieldPageListSelectMultiple('enabledPages', 'Enabled Pages', '', 'AND THEIR CHILDREN Select none for all pages.', '', '', 25, $id));
         $fields->add($this->_createInputfieldText('fileExtensions', 'File Extensions', '', 'Comma separated list (eg. png, jpg). Leave empty for all extensions.', '', '', 25));
         $fields->add($this->_createInputfieldText('filenameFormat', 'Filename Format', '', 'eg: mysite-{$page->path} Leave empty to not rename.', '', '', 25));
         $fields->add($this->_createInputfieldText('filenameLength', 'Filename Length', '', 'Number of characters (nearest whole word). Leave empty for no truncation.', '', '', 25));
