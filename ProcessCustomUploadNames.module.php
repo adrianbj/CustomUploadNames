@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.2.2',
+            'version' => '1.2.3',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -379,10 +379,14 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             $newname = $evalednewname;
         }
 
+        // remove any encoded entities
         $newname = $this->wire('sanitizer')->unentities($newname);
 
         // truncate final new name before checking to see if "-n" needs to be appended
         if($filenameLength != '') $newname = $this->truncate($newname, $filenameLength);
+
+        // new pagefiles object so we can make use of cleanBaseName method below
+        $pageFiles = new Pagefiles($page);
 
         $n = 0;
         //if a number mask (### etc) is supplied in the filename format
@@ -390,12 +394,12 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             do {
                 $n++;
                 $custom_n = str_pad($n, substr_count($newname, '#')+1, '0', STR_PAD_LEFT);
-                $finalFilename = $path_parts['dirname'] . '/' . $this->wire('sanitizer')->filename(preg_replace("/\#+/", "$1".$custom_n, $newname), Sanitizer::translate) .  '.' . $path_parts['extension'];
+                $finalFilename = $path_parts['dirname'] . '/' . $pageFiles->cleanBasename(preg_replace("/\#+/", "$1".$custom_n, $newname), false, true, true) .  '.' . $path_parts['extension'];
             } while(in_array(pathinfo($finalFilename, PATHINFO_BASENAME), $this->getAllFilenames($filePage)) || file_exists($finalFilename) || file_exists(str_replace($path_parts['dirname'], $filePage->filesManager()->path(), $finalFilename)));
         }
         else {
             do {
-                $finalFilename = $path_parts['dirname'] . '/' . $this->wire('sanitizer')->filename($newname, Sanitizer::translate) . ($n === 0 ? '' : '-' . $n) .  '.' . $path_parts['extension'];
+                $finalFilename = $path_parts['dirname'] . '/' . $pageFiles->cleanBasename($newname, false, true, true) . ($n === 0 ? '' : '-' . $n) .  '.' . $path_parts['extension'];
                 $n++;
             } while(in_array(pathinfo($finalFilename, PATHINFO_BASENAME), $this->getAllFilenames($filePage)) || file_exists($finalFilename) || file_exists(str_replace($path_parts['dirname'], $filePage->filesManager()->path(), $finalFilename)));
         }
