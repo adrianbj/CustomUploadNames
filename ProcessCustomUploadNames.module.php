@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.2.5',
+            'version' => '1.2.6',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -231,22 +231,29 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                 }
                 elseif($action == 'save') { // saving from admin or api
                     // checks to prevent renaming on page save when there is no need because the filename won't change.
-                    // this is mainly to prevent -n numbers from changing on each page save.
-                    $parts = explode("-", pathinfo($oldFilename, PATHINFO_FILENAME));
-                    $filenameNum = end($parts);
-                    if(is_numeric($filenameNum)) {
-                        $filenameSansNum = str_replace('-'.$filenameNum, '', $oldFilename);
+                    // this is mainly to prevent -n or #nnnn numbers from changing on each page save.
+                    if(strpos($rule->filenameFormat, '#') !== false) {
+                        $trimNum = substr_count($rule->filenameFormat, '#');
+                        $filenameSansNum = substr(pathinfo($oldFilename, PATHINFO_FILENAME), 0, -3) . pathinfo($oldFilename, PATHINFO_EXTENSION);
+                        $newFilenameSansNum = substr(pathinfo($newFilename, PATHINFO_FILENAME), 0, -3) . pathinfo($newFilename, PATHINFO_EXTENSION);
                     }
                     else {
-                        $filenameSansNum = $oldFilename;
-                    }
-                    $parts = explode("-", pathinfo($newFilename, PATHINFO_FILENAME));
-                    $newFilenameNum = end($parts);
-                    if(is_numeric($newFilenameNum)) {
-                        $newFilenameSansNum = str_replace('-'.$newFilenameNum, '', $newFilename);
-                    }
-                    else {
-                        $newFilenameSansNum = $newFilename;
+                        $parts = explode("-", pathinfo($oldFilename, PATHINFO_FILENAME));
+                        $filenameNum = end($parts);
+                        if(is_numeric($filenameNum)) {
+                            $filenameSansNum = str_replace('-'.$filenameNum, '', $oldFilename);
+                        }
+                        else {
+                            $filenameSansNum = $oldFilename;
+                        }
+                        $parts = explode("-", pathinfo($newFilename, PATHINFO_FILENAME));
+                        $newFilenameNum = end($parts);
+                        if(is_numeric($newFilenameNum)) {
+                            $newFilenameSansNum = str_replace('-'.$newFilenameNum, '', $newFilename);
+                        }
+                        else {
+                            $newFilenameSansNum = $newFilename;
+                        }
                     }
 
                     if($filenameSansNum == $newFilenameSansNum) continue;
