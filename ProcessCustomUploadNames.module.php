@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.2.4',
+            'version' => '1.2.5',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -394,14 +394,11 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             do {
                 $n++;
                 $custom_n = str_pad($n, substr_count($newname, '#')+1, '0', STR_PAD_LEFT);
-                $finalFilename = $path_parts['dirname'] . '/' . $pageFiles->cleanBasename(preg_replace("/\#+/", "$1".$custom_n, $newname), false, true, true) .  '.' . $path_parts['extension'];
+                $finalFilename = $path_parts['dirname'] . '/' . $pageFiles->cleanBasename(preg_replace("/\#+/", "$1".$custom_n, $newname . '.' . $path_parts['extension']), false, true, true);
             } while(in_array(pathinfo($finalFilename, PATHINFO_BASENAME), $this->getAllFilenames($filePage)) || file_exists($finalFilename) || file_exists(str_replace($path_parts['dirname'], $filePage->filesManager()->path(), $finalFilename)));
         }
         else {
-            do {
-                $finalFilename = $path_parts['dirname'] . '/' . $pageFiles->cleanBasename($newname, false, true, true) . ($n === 0 ? '' : '-' . $n) .  '.' . $path_parts['extension'];
-                $n++;
-            } while(in_array(pathinfo($finalFilename, PATHINFO_BASENAME), $this->getAllFilenames($filePage)) || file_exists($finalFilename) || file_exists(str_replace($path_parts['dirname'], $filePage->filesManager()->path(), $finalFilename)));
+            $finalFilename = $path_parts['dirname'] . '/' . $pageFiles->cleanBasename($newname . '.' . $path_parts['extension'], true, true, true);
         }
         return $finalFilename;
     }
