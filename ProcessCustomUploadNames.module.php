@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.2.6',
+            'version' => '1.2.7',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -437,7 +437,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                         if(count($fieldObject)) {
                             foreach($fieldObject as $file) {
                                 if($withId) {
-                                    $files[] = $file->name.'|'.$p->{$field->name}->id.'|'.$field->id; // add filename with respective fieldid to array
+                                    $files[] = $file->name.'|'.$p->{$field->name}->id.'|'.$rf->id; // add filename with respective fieldid to array
                                 }
                                 else {
                                     $files[] = $file->name;
