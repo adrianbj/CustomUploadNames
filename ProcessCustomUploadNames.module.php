@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.2.7',
+            'version' => '1.2.8',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -226,7 +226,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                         $pagefile->rename($newFilename);
                         // set image as temp because the rename method removes this
                         // image will have temp status removed once page is saved
-                        $pagefile->isTemp(true);
+                        if(!$field->overwrite) $pagefile->isTemp(true);
                     }
                 }
                 elseif($action == 'save') { // saving from admin or api
