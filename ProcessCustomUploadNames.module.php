@@ -26,7 +26,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.2.8',
+            'version' => '1.2.9',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -388,6 +388,9 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
         // remove any encoded entities
         $newname = $this->wire('sanitizer')->unentities($newname);
+
+        // remove any forward slashes
+        $newname = str_replace('/', '_', $newname);
 
         // truncate final new name before checking to see if "-n" needs to be appended
         if($filenameLength != '') $newname = $this->truncate($newname, $filenameLength);
