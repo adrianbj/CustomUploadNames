@@ -6,12 +6,8 @@
  *
  * Automatically rename file/image uploads according to a configurable format
  *
- * ProcessWire 2.x
- * Copyright (C) 2011 by Ryan Cramer
+ * Copyright (C) 2020 by Adrian Jones
  * Licensed under GNU/GPL v2, see LICENSE.TXT
- *
- * http://www.processwire.com
- * http://www.ryancramer.com
  *
  */
 
@@ -26,7 +22,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.2.9',
+            'version' => '1.2.10',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -88,17 +84,17 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             }
         }
 
-        //only load js file if we're on the module config settings for this module, rather than any other module
+        // only load js file if we're on the module config settings for this module, rather than any other module
         if($this->className() == $this->wire('input')->get->name) $this->addHookAfter("ProcessModule::executeEdit", $this, "addScript");
 
 
         if($this->ruleData!='') {
-            //page in the admin
+            // page in the admin
             $processPage = $this->wire('page');
             if($processPage->process && in_array('WirePageEditor', class_implements((string) $processPage->process))) {
                 $this->addHookBefore('InputfieldFile::fileAdded', $this, 'customRenameUploads', array('priority'=>10));
             }
-            //front-end API
+            // front-end API
             else {
                 $this->addHookAfter('Pagefile::install', $this, 'customRenameUploads');
             }
@@ -111,7 +107,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
         $pageid = null;
 
-        //admin
+        // admin
         $process = $this->wire('process');
         if($process instanceof WirePageEditor) {
             if($process->getPage()->template == 'language') return;
@@ -129,7 +125,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                 $pageid = $event->arguments(0)->id;
             }
         }
-        //API
+        // API
         else {
             if($event->object->field) {
                 $action = 'upload';
@@ -145,7 +141,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             }
         }
 
-        if(!$pageid) return; //avoids interactions with other modules
+        if(!$pageid) return; // avoids interactions with other modules
 
         if(method_exists($this->wire('pages')->get($pageid), 'getForPage')) {
             $editedPage = $this->wire('pages')->get($pageid)->getForPage();
@@ -158,10 +154,10 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         }
 
 
-        //$editedPage->of(false);
+        // $editedPage->of(false);
 
         if($action == 'upload') {
-            //if page belongs to a repeater or pagetable field
+            // if page belongs to a repeater or pagetable field
             if(method_exists($this->wire('pages')->get($pageid), 'getForPage') || $this->wire('input')->get->context == 'PageTable') {
                 $files[] = $pagefile->filename . '|' . $pageid . '|' . $fieldid; // add filename with respective repeater/pagetable pageid and fieldid to array
             }
@@ -176,19 +172,21 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         if(empty($files)) return;
 
         foreach($files as $file) {
-
-            //if it was a repeater field updating on save, then need to get pageid of repeater field
+            // if it was a repeater field updating on save, then need to get pageid of repeater field
             $repeaterPage = null;
             $elements = explode('|', $file);
             $filename = $elements[0];
             $repeaterid = isset($elements[2]) ? $elements[1] : null;
             $fieldid = isset($elements[2]) ? $elements[2] : $elements[1];
+
+            //if($action == 'save' && (!is_object($pagefile) || is_object($pagefile) && !$pagefile->mtime) && !$repeaterid) continue;
+
             if($repeaterid) {
                 $repeaterPage = $this->wire('pages')->get($repeaterid);
                 $repeaterPage->of(false);
             }
 
-            //quick fix to prevent this module from renaming video thumbs from GetVideoThumbs module
+            // quick fix to prevent this module from renaming video thumbs from GetVideoThumbs module
             if($this->wire('modules')->isInstalled('ProcessGetVideoThumbs') && $this->data['getVideoThumbs'] == 1) {
                 if(strpos($filename,'youtube') !== false || strpos($filename,'vimeo') !== false) return;
             }
@@ -196,31 +194,36 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             $filePage = $repeaterPage ? $repeaterPage : $editedPage;
             $filePage->of(false);
 
-            //ruleData is a json string that we need to turn into an object
+            // ruleData is a json string that we need to turn into an object
             $rules = json_decode($this->ruleData);
 
-            //iterate through each of the rename rules
+            // iterate through each of the rename rules
             foreach ($rules as $rule) {
 
                 foreach(explode("|",$editedPage->parents) as $parent) {
                     if(isset($rule->enabledPages)) $parentEnabled = in_array($parent, $rule->enabledPages) || in_array(1, $rule->enabledPages) ? true : false;
                 }
 
-                //all the conditions to not rename
+                // all the conditions to not rename
                 if($rule->tempDisabled == '1') continue;
-                if(is_array($rule->enabledFields) && count($rule->enabledFields) && !in_array($fieldid, $rule->enabledFields)) continue; //if fields set and this is not a selected field
+                if(is_array($rule->enabledFields) && count($rule->enabledFields) && !in_array($fieldid, $rule->enabledFields)) continue; // if fields set and this is not a selected field
                 if(is_array($rule->enabledTemplates) && count($rule->enabledTemplates) && !in_array($editedPage->template->id, $rule->enabledTemplates)) continue;
                 if(isset($rule->enabledPages) && $rule->enabledPages[0] != '' && !in_array($editedPage->id, $rule->enabledPages) && !$parentEnabled) continue;
-                if($rule->fileExtensions != '' && !in_array(pathinfo($filename, PATHINFO_EXTENSION), explode(",", trim(str_replace(', ',',',$rule->fileExtensions))))) continue; //if fileExtensions is set and the uploaded file does not match
-                //for these next rules, break rather than continue because these are not specifity rules. No match is a positive result and so we don't want to test the next rule.
-                if($rule->filenameFormat == '') break; // don't attempt to rename if the filename format field is empty
-                if($rule->renameOnSave != '1' && $action == 'save' && strpos(pathinfo($filename, PATHINFO_FILENAME),'_upload_tmp') === false) break; // _upload_tmp set when the eval'd filename format is not available yet because field is empty.
+                if($rule->fileExtensions != '' && !in_array(pathinfo($filename, PATHINFO_EXTENSION), explode(",", trim(str_replace(', ',',',$rule->fileExtensions))))) continue; // if fileExtensions is set and the uploaded file does not match
 
-                //build the new filename
+                // for these next rules, break rather than continue because these are not specifity rules. No match is a positive result and so we don't want to test the next rule.
+                // if repeater page but image has no repeater ID need to break to prevent this problem: https://processwire.com/talk/topic/4865-custom-upload-names/?do=findComment&comment=191410
+                // if(method_exists($this->wire('pages')->get($pageid), 'getForPage') && !$repeaterid) break;
+                if($rule->filenameFormat == '') break; // don't attempt to rename if the filename format field is empty
+                // check if filename has -n extension and if so we do a rename on save to remove the -n if we can
+                preg_match('/(.*)-\d$/', pathinfo($filename, PATHINFO_FILENAME), $matches);
+                if($rule->renameOnSave != '1' && $action == 'save' && strpos(pathinfo($filename, PATHINFO_FILENAME),'_upload_tmp') === false && count($matches) === 0) break; // _upload_tmp set when the eval'd filename format is not available yet because field is empty.
+
+                // build the new filename
                 $oldFilename = $filePage->filesManager()->path() . basename($filename);
                 $newFilename = $this->createNewFilename($oldFilename, $rule->filenameFormat, $rule->filenameLength, $editedPage, $fieldid, $repeaterPage);
 
-                //rename the file
+                // rename the file
                 if($action == 'upload') {
                     if(file_exists($oldFilename)) {
                         $pagefile->rename($newFilename);
@@ -256,7 +259,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                         }
                     }
 
-                    if($filenameSansNum == $newFilenameSansNum) continue;
+                    if($filenameSansNum == $newFilenameSansNum && file_exists($filenameSansNum)) continue;
 
                     if($oldFilename != $newFilename) {
                         $field = $this->wire('fields')->get($fieldid);
@@ -305,7 +308,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
     private function replaceRteLink($pagedom, $newFilename, $oldFilename, $tag, $attr) {
         foreach($pagedom->getElementsByTagName($tag) as $link) {
-            //if $link is the same image as (or a variation of) the one we are currently looping through ($oldFilename), then rename it
+            // if $link is the same image as (or a variation of) the one we are currently looping through ($oldFilename), then rename it
             if(pathinfo($oldFilename, PATHINFO_BASENAME) == pathinfo($link->getAttribute($attr), PATHINFO_BASENAME) || $this->isImgVarOf(pathinfo($oldFilename, PATHINFO_BASENAME), pathinfo($link->getAttribute($attr), PATHINFO_BASENAME))) {
                 $parts = explode("/", pathinfo($newFilename, PATHINFO_DIRNAME));
                 $pid = end($parts);
@@ -323,10 +326,10 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
         $path_parts = pathinfo($filename);
 
-        //filename format can support $page, $template, $field, and $file variables in the format as defined in the module config settings
-        //if repeater page, need to use parent page for determining name
+        // filename format can support $page, $template, $field, and $file variables in the format as defined in the module config settings
+        // if repeater page, need to use parent page for determining name
         $page = $editedPage;
-        $page->of(false); //needed here for when using via API and formatted value set to automatic
+        $page->of(false); // needed here for when using via API and formatted value set to automatic
         $field = $this->wire('fields')->get($fieldid);
         $template = $page->template;
 
@@ -337,10 +340,10 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
         // Grab filename format and eval it. I am thinking about ditching the eval approach and going with a template style system
         // The two commented out options allow for full flexibility (the user can use php functions etc, but makes formatting more complicated)
-        //$newname = $this->sanitizer->pageName(eval($newname), true);
-        //$newname = $this->sanitizer->pageName(eval("return $newname;"), true);
+        // $newname = $this->sanitizer->pageName(eval($newname), true);
+        // $newname = $this->sanitizer->pageName(eval("return $newname;"), true);
 
-        $page->of(true); //turned this on for allowing datetime field outputformatting to come through in filenames, rather than unixtimestamps
+        $page->of(true); // turned this on for allowing datetime field outputformatting to come through in filenames, rather than unixtimestamps
 
         // check if the field is a language alternate field and if so, set the user language to this language
         if($this->wire('languages')) {
@@ -355,14 +358,14 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             preg_match("/\[(.*?)\]/", $newname, $length);
             $newname = str_replace('randstring['.$length[1].']', $this->generateRandomString($length[1]), $newname);
         }
-        elseif(strpos($newname,'[') !== false) { //expecting a date format string for formatting the current datetime
+        elseif(strpos($newname,'[') !== false) { // expecting a date format string for formatting the current datetime
             preg_match("/\[(.*?)\]/", $newname, $dateformat_array);
             $newname = str_replace($dateformat_array[0], date($dateformat_array[1]), $newname);
         }
 
         // get the eval'd filename
         $evalednewname = @eval('return "'.$newname.'";');
-        $page->of(false); //not sure if turning off is really necessarily, but seems safer
+        $page->of(false); // not sure if turning off is really necessarily, but seems safer
 
         // if any of the eval'd variables (PW fields etc) are empty we should treat this as a temp name until fields are populated
         preg_match_all('/\{[^\}]*\}/', $newname, $matches);
@@ -399,7 +402,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         $pageFiles = new Pagefiles($page);
 
         $n = 0;
-        //if a number mask (### etc) is supplied in the filename format
+        // if a number mask (### etc) is supplied in the filename format
         if(strpos($newname,'#') !== false) {
             do {
                 $n++;
@@ -453,8 +456,8 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             elseif($field->type instanceof FieldtypeRepeater) {
                 foreach($p->{$field->name} as $repeater) {
 
-                    //make sure repeater item actually exists already, which is important when you have added items beyond those initially rendered.
-                    //fixes this issue: https://github.com/ryancramerdesign/ProcessWire/issues/1541
+                    // make sure repeater item actually exists already, which is important when you have added items beyond those initially rendered.
+                    // fixes this issue: https://github.com/ryancramerdesign/ProcessWire/issues/1541
                     if(!is_object($repeater) || !$repeater->id) continue;
 
                     foreach($repeater->fields as $rf) {
@@ -742,7 +745,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         $field->attr('id', $ipName . $ipID); // Allows us to add more of these with different IDs via AJAX
         $field->set('unselectLabel', 'Unselect');
         $field->columnWidth = $ipWidth;
-        //$field->sortable = false; // this doesn't work - is there an alternative of setAsmSelectOption('sortable', false); that works for PageListSelectMultiple fields ?
+        // $field->sortable = false; // this doesn't work - is there an alternative of setAsmSelectOption('sortable', false); that works for PageListSelectMultiple fields ?
         if($ipValue == 0) $field->collapsed = Inputfield::collapsedNo;
         return $field;
     }
