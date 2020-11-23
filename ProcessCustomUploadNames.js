@@ -29,8 +29,8 @@ $(document).ready(function() {
 
     };
 
-    if ($.isFunction($(document).on)) {
-        $(document).on('click', '#addRule', addRule);
+    if($.isFunction($(document).on)) {
+        $('#addRule').on('click', addRule);
     }
     else {
         $('#addRule').live('click', addRule);
@@ -39,38 +39,34 @@ $(document).ready(function() {
 
     // Handle click of the delete button
     var deleteRow = function(e){
+        e.stopPropagation();
         e.preventDefault();
         $(this).toggleClass('ui-state-active');
         $(this).parent().parent().remove();
     }
 
-    if ($.isFunction($(document).on)) {
-        $(document).on('click', '.deleterow', deleteRow);
+    if($.isFunction($(document).on)) {
+        $('.deleterow').on('click', deleteRow);
     } else {
         $('.deleterow').live('click', deleterow);
     }
 
     // Takes over from normal submit to store our categories in an array and then submit as normal
     $('#Inputfield_submit_save_module, #Inputfield_submit').click(function(e) {
-        if ($('#RenameRules').length) {
+        if($('#RenameRules').length) {
             // A variable to store the CSV data in
             var data = new Array();
             // Iterate through the rows of rename rules
             $('#RenameRules ul.Inputfields ul.Inputfields').each(function(i) {
-                // If the filename format field for the row isn't empty, add the row to our data variable
-                // No longer doing this check as want to allow the ability to set up a rule where the filename isn't changed
-                //if ($(this).find('input[name=filenameFormat]').val() != '') {
-                    data[i] = {};
-                    data[i]['tempDisabled'] = $(this).find('input[name=tempDisabled]').is(':checked') ? 1 : 0;
-                    data[i]['enabledFields'] = $(this).find('select[id=Inputfield_enabledFields]').val();
-                    data[i]['enabledTemplates'] = $(this).find('select[id=Inputfield_enabledTemplates]').val();
-                    //if($(this).find('input[id=enabledPages'+i+']').length !== 0) data[i]['enabledPages'] = $(this).find('input[id=enabledPages'+i+']').val().split(",");
-                    data[i]['enabledPages'] = $('input[id=enabledPages'+i+']').val().split(",");
-                    data[i]['fileExtensions'] = $(this).find('input[name=fileExtensions]').val();
-                    data[i]['filenameFormat'] = $(this).find('input[name=filenameFormat]').val();
-                    data[i]['filenameLength'] = $(this).find('input[name=filenameLength]').val();
-                    data[i]['renameOnSave'] = $(this).find('input[name=renameOnSave]').is(':checked') ? 1 : 0;
-                //}
+                data[i] = {};
+                data[i]['tempDisabled'] = $(this).find('input[name=tempDisabled]').is(':checked') ? 1 : 0;
+                data[i]['enabledFields'] = $(this).find('select[id=Inputfield_enabledFields]').val();
+                data[i]['enabledTemplates'] = $(this).find('select[id=Inputfield_enabledTemplates]').val();
+                data[i]['enabledPages'] = $(this).find('input[id^=enabledPages]').val().split(",");
+                data[i]['fileExtensions'] = $(this).find('input[name=fileExtensions]').val();
+                data[i]['filenameFormat'] = $(this).find('input[name=filenameFormat]').val();
+                data[i]['filenameLength'] = $(this).find('input[name=filenameLength]').val();
+                data[i]['renameOnSave'] = $(this).find('input[name=renameOnSave]').is(':checked') ? 1 : 0;
             });
 
             if (getObjectSize(data) > 0) {
