@@ -22,14 +22,14 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.2.10',
+            'version' => '1.2.11',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
             'singular' => true,
             'autoload' => true,
             'icon'     => 'edit'
-            );
+        );
     }
 
     /**
@@ -113,7 +113,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             if($process->getPage()->template == 'language') return;
             $pagefile = $event->argumentsByName("pagefile");
             $field = $event->object;
-
+            $method = 'admin';
             if($pagefile) {
                 $action = 'upload';
                 $pageid = $pagefile->pagefiles->getPage()->id;
@@ -127,6 +127,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         }
         // API
         else {
+            $method = 'api';
             if($event->object->field) {
                 $action = 'upload';
                 $pagefile = $event->object;
@@ -229,7 +230,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                         $pagefile->rename($newFilename);
                         // set image as temp because the rename method removes this
                         // image will have temp status removed once page is saved
-                        if(!$field->overwrite) $pagefile->isTemp(true);
+                        if(!$field->overwrite && $method == 'admin') $pagefile->isTemp(true);
                     }
                 }
                 elseif($action == 'save') { // saving from admin or api
@@ -237,13 +238,13 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                     // this is mainly to prevent -n or #nnnn numbers from changing on each page save.
                     if(strpos($rule->filenameFormat, '#') !== false) {
                         $trimNum = substr_count($rule->filenameFormat, '#');
-                        $filenameSansNum = substr(pathinfo($oldFilename, PATHINFO_FILENAME), 0, -3) . pathinfo($oldFilename, PATHINFO_EXTENSION);
-                        $newFilenameSansNum = substr(pathinfo($newFilename, PATHINFO_FILENAME), 0, -3) . pathinfo($newFilename, PATHINFO_EXTENSION);
+                        $filenameSansNum = trim(substr(pathinfo($oldFilename, PATHINFO_FILENAME), 0, -$trimNum), '-') . '.' . pathinfo($oldFilename, PATHINFO_EXTENSION);
+                        $newFilenameSansNum = trim(substr(pathinfo($newFilename, PATHINFO_FILENAME), 0, -$trimNum), '-') . '.' . pathinfo($newFilename, PATHINFO_EXTENSION);
                     }
                     else {
                         $parts = explode("-", pathinfo($oldFilename, PATHINFO_FILENAME));
                         $filenameNum = end($parts);
-                        if(is_numeric($filenameNum)) {
+                        if(is_numeric($filenameNum) && strlen($filenameNum <= 3)) {
                             $filenameSansNum = str_replace('-'.$filenameNum, '', $oldFilename);
                         }
                         else {
@@ -259,7 +260,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                         }
                     }
 
-                    if($filenameSansNum == $newFilenameSansNum && file_exists($filenameSansNum)) continue;
+                    if($filenameSansNum == $newFilenameSansNum && file_exists($oldFilename)) continue;
 
                     if($oldFilename != $newFilename) {
                         $field = $this->wire('fields')->get($fieldid);
@@ -392,8 +393,10 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         // remove any encoded entities
         $newname = $this->wire('sanitizer')->unentities($newname);
 
-        // remove any forward slashes
-        $newname = str_replace('/', '_', $newname);
+        // remove any forward slashes, ampersands, parentheses, and spaces
+        // spaces are replaced with dashes now because cleanBasename would otherwise use an underscore (which suck!)
+        $newname = str_replace(array('/', '&', '(', ')', ' '), '-', $newname);
+        $newname = trim($newname, '-');
 
         // truncate final new name before checking to see if "-n" needs to be appended
         if($filenameLength != '') $newname = $this->truncate($newname, $filenameLength);
@@ -408,11 +411,14 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                 $n++;
                 $custom_n = str_pad($n, substr_count($newname, '#')+1, '0', STR_PAD_LEFT);
                 $finalFilename = $path_parts['dirname'] . '/' . $pageFiles->cleanBasename(preg_replace("/\#+/", "$1".$custom_n, $newname . '.' . $path_parts['extension']), false, true, true);
+                $finalFilename = preg_replace('/-+/', '-', $finalFilename);
             } while(in_array(pathinfo($finalFilename, PATHINFO_BASENAME), $this->getAllFilenames($filePage)) || file_exists($finalFilename) || file_exists(str_replace($path_parts['dirname'], $filePage->filesManager()->path(), $finalFilename)));
         }
         else {
-            $finalFilename = $path_parts['dirname'] . '/' . $pageFiles->cleanBasename($newname . '.' . $path_parts['extension'], true, true, true);
+            $finalFilename = $path_parts['dirname'] . '/' . $pageFiles->cleanBasename($newname . '.' . $path_parts['extension'], false, true, true);
+            $finalFilename = preg_replace('/-+/', '-', $finalFilename);
         }
+
         return $finalFilename;
     }
 
