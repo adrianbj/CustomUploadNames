@@ -22,7 +22,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.2.11',
+            'version' => '1.2.12',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -393,8 +393,9 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         // remove any encoded entities
         $newname = $this->wire('sanitizer')->unentities($newname);
 
-        // remove any forward slashes, ampersands, parentheses, and spaces
+        // remove any leading/trailing periods, and any forward slashes, ampersands, parentheses, and spaces
         // spaces are replaced with dashes now because cleanBasename would otherwise use an underscore (which suck!)
+        $newname = trim($newname, '.');
         $newname = str_replace(array('/', '&', '(', ')', ' '), '-', $newname);
         $newname = trim($newname, '-');
 
