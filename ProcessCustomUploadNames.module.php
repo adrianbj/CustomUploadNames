@@ -224,8 +224,11 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                 $oldFilename = $filePage->filesManager()->path() . basename($filename);
                 $newFilename = $this->createNewFilename($oldFilename, $rule->filenameFormat, $rule->filenameLength, $editedPage, $fieldid, $repeaterPage);
 
+                if($oldFilename == $newFilename) continue;
+
                 // rename the file
                 if($action == 'upload') {
+
                     if(file_exists($oldFilename)) {
                         $pagefile->rename($newFilename);
                         // set image as temp because the rename method removes this
@@ -234,26 +237,27 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                     }
                 }
                 elseif($action == 'save') { // saving from admin or api
+
                     // checks to prevent renaming on page save when there is no need because the filename won't change.
                     // this is mainly to prevent -n or #nnnn numbers from changing on each page save.
                     if(strpos($rule->filenameFormat, '#') !== false) {
                         $trimNum = substr_count($rule->filenameFormat, '#');
-                        $filenameSansNum = trim(substr(pathinfo($oldFilename, PATHINFO_FILENAME), 0, -$trimNum), '-') . '.' . pathinfo($oldFilename, PATHINFO_EXTENSION);
-                        $newFilenameSansNum = trim(substr(pathinfo($newFilename, PATHINFO_FILENAME), 0, -$trimNum), '-') . '.' . pathinfo($newFilename, PATHINFO_EXTENSION);
+                        $filenameSansNum = trim(substr(pathinfo($oldFilename, PATHINFO_FILENAME), 0, -$trimNum), '_') . '.' . pathinfo($oldFilename, PATHINFO_EXTENSION);
+                        $newFilenameSansNum = trim(substr(pathinfo($newFilename, PATHINFO_FILENAME), 0, -$trimNum), '_') . '.' . pathinfo($newFilename, PATHINFO_EXTENSION);
                     }
                     else {
-                        $parts = explode("-", pathinfo($oldFilename, PATHINFO_FILENAME));
+                        $parts = explode("_", pathinfo($oldFilename, PATHINFO_FILENAME));
                         $filenameNum = end($parts);
-                        if(is_numeric($filenameNum) && strlen($filenameNum <= 3)) {
-                            $filenameSansNum = str_replace('-'.$filenameNum, '', $oldFilename);
+                        if(is_numeric($filenameNum)) {
+                            $filenameSansNum = str_replace('_'.$filenameNum, '', $oldFilename);
                         }
                         else {
                             $filenameSansNum = $oldFilename;
                         }
-                        $parts = explode("-", pathinfo($newFilename, PATHINFO_FILENAME));
+                        $parts = explode("_", pathinfo($newFilename, PATHINFO_FILENAME));
                         $newFilenameNum = end($parts);
                         if(is_numeric($newFilenameNum)) {
-                            $newFilenameSansNum = str_replace('-'.$newFilenameNum, '', $newFilename);
+                            $newFilenameSansNum = str_replace('_'.$newFilenameNum, '', $newFilename);
                         }
                         else {
                             $newFilenameSansNum = $newFilename;
@@ -296,11 +300,13 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             foreach($textareaFields as $taf) {
                 if($p->$taf != '') {
                     $pagedom = new DOMDocument();
+                    libxml_use_internal_errors(true);
                     $pagedom->loadHTML(mb_convert_encoding($p->$taf, 'HTML-ENTITIES', 'UTF-8'));
                     $pagedom = $this->replaceRteLink($pagedom, $newFilename, $oldFilename, 'a', 'href');
                     $pagedom = $this->replaceRteLink($pagedom, $newFilename, $oldFilename, 'img', 'src');
                     $p->of(false);
                     $p->$taf = $pagedom->saveHTML();
+                    libxml_clear_errors();
                     $p->save($taf);
                 }
             }
@@ -393,17 +399,8 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         // remove any encoded entities
         $newname = $this->wire('sanitizer')->unentities($newname);
 
-        // remove any leading/trailing periods, and any forward slashes, ampersands, parentheses, and spaces
-        // spaces are replaced with dashes now because cleanBasename would otherwise use an underscore (which suck!)
-        $newname = trim($newname, '.');
-        $newname = str_replace(array('/', '&', '(', ')', ' '), '-', $newname);
-        $newname = trim($newname, '-');
-
         // truncate final new name before checking to see if "-n" needs to be appended
         if($filenameLength != '') $newname = $this->truncate($newname, $filenameLength);
-
-        // new pagefiles object so we can make use of cleanBaseName method below
-        $pageFiles = new Pagefiles($page);
 
         $n = 0;
         // if a number mask (### etc) is supplied in the filename format
@@ -411,13 +408,17 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             do {
                 $n++;
                 $custom_n = str_pad($n, substr_count($newname, '#')+1, '0', STR_PAD_LEFT);
-                $finalFilename = $path_parts['dirname'] . '/' . $pageFiles->cleanBasename(preg_replace("/\#+/", "$1".$custom_n, $newname . '.' . $path_parts['extension']), false, true, true);
-                $finalFilename = preg_replace('/-+/', '-', $finalFilename);
+                $finalFilename = $path_parts['dirname'] . '/' . str_replace(array('_', '.'), '-', $this->wire('sanitizer')->pageNameTranslate($newname)) . '_'. $custom_n . '.' . $path_parts['extension'];
             } while(in_array(pathinfo($finalFilename, PATHINFO_BASENAME), $this->getAllFilenames($filePage)) || file_exists($finalFilename) || file_exists(str_replace($path_parts['dirname'], $filePage->filesManager()->path(), $finalFilename)));
         }
+        elseif($file->isTemp()) {
+            $finalFilename = $path_parts['dirname'] . '/' . str_replace(array('_', '.'), '-', $this->wire('sanitizer')->pageNameTranslate($newname)) . '.' . $path_parts['extension'];
+        }
         else {
-            $finalFilename = $path_parts['dirname'] . '/' . $pageFiles->cleanBasename($newname . '.' . $path_parts['extension'], false, true, true);
-            $finalFilename = preg_replace('/-+/', '-', $finalFilename);
+            do {
+                $finalFilename = $path_parts['dirname'] . '/' . str_replace(array('_', '.'), '-', $this->wire('sanitizer')->pageNameTranslate($newname)) . ($n>0 ? '_'.$n : '') . '.' . $path_parts['extension'];
+                $n++;
+            } while(in_array(pathinfo($finalFilename, PATHINFO_BASENAME), $this->getAllFilenames($filePage)) || file_exists($finalFilename) || file_exists(str_replace($path_parts['dirname'], $filePage->filesManager()->path(), $finalFilename)));
         }
 
         return $finalFilename;
