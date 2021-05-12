@@ -22,7 +22,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.3.1',
+            'version' => '1.3.2',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -218,7 +218,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                 if($rule->filenameFormat == '') break; // don't attempt to rename if the filename format field is empty
                 // check if filename has -n extension and if so we do a rename on save to remove the -n if we can
                 preg_match('/(.*)-\d$/', pathinfo($filename, PATHINFO_FILENAME), $matches);
-                if($rule->renameOnSave != '1' && $action == 'save' && strpos(pathinfo($filename, PATHINFO_FILENAME),'_upload_tmp') === false && count($matches) === 0) break; // _upload_tmp set when the eval'd filename format is not available yet because field is empty.
+                if($rule->renameOnSave != '1' && $action == 'save' && strpos(pathinfo($filename, PATHINFO_FILENAME),'-upload-tmp') === false && count($matches) === 0) break; // -upload-tmp set when the eval'd filename format is not available yet because field is empty.
 
                 // build the new filename
                 $oldFilename = $filePage->filesManager()->path() . basename($filename);
@@ -385,8 +385,8 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         }
 
         if($blankField || $evalednewname == '') {
-            if(strpos($path_parts['filename'],'_upload_tmp') === false) {
-                $newname = $path_parts['filename'] . '_upload_tmp'; // this allows the filename to be renamed on page save if the field for the format wasn't available at upload
+            if(strpos($path_parts['filename'],'-upload-tmp') === false) {
+                $newname = $path_parts['filename'] . '-upload-tmp'; // this allows the filename to be renamed on page save if the field for the format wasn't available at upload
             }
             else {
                 $newname = $path_parts['filename'];
@@ -411,7 +411,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                 $finalFilename = $path_parts['dirname'] . '/' . str_replace(array('_', '.'), '-', $this->wire('sanitizer')->pageNameTranslate($newname)) . '_'. $custom_n . '.' . $path_parts['extension'];
             } while(in_array(pathinfo($finalFilename, PATHINFO_BASENAME), $this->getAllFilenames($filePage)) || file_exists($finalFilename) || file_exists(str_replace($path_parts['dirname'], $filePage->filesManager()->path(), $finalFilename)));
         }
-        elseif($file->isTemp()) {
+        elseif(!is_null($file) && $file->isTemp()) {
             $finalFilename = $path_parts['dirname'] . '/' . str_replace(array('_', '.'), '-', $this->wire('sanitizer')->pageNameTranslate($newname)) . '.' . $path_parts['extension'];
         }
         else {
