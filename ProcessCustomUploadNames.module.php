@@ -22,7 +22,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.3.2',
+            'version' => '1.3.3',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -433,7 +433,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
             if($field->type instanceof FieldtypeFile) {
                 $fieldObject = $p->getUnformatted($field->name);
-                if(count($fieldObject)) {
+                if(wireCount($fieldObject)) {
                     foreach($fieldObject as $file) {
                         if($withId) {
                             $files[] = $file->name . '|' . $field->id; // add filename with respective fieldid to array
@@ -448,7 +448,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                 foreach($p->{$field->name}->fields as $rf) {
                     if($rf->type instanceof FieldtypeFile) {
                         $fieldObject = $p->{$field->name}->getUnformatted($rf->name);
-                        if(count($fieldObject)) {
+                        if(wireCount($fieldObject)) {
                             foreach($fieldObject as $file) {
                                 if($withId) {
                                     $files[] = $file->name.'|'.$p->{$field->name}->id.'|'.$rf->id; // add filename with respective fieldid to array
@@ -471,7 +471,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
                     foreach($repeater->fields as $rf) {
                         if($rf->type instanceof FieldtypeFile) {
                             $fieldObject = $repeater->getUnformatted($rf->name);
-                            if($fieldObject && count($fieldObject)) {
+                            if($fieldObject && wireCount($fieldObject)) {
                                 foreach($fieldObject as $file) {
                                     if(!$file) continue;
                                     if($withId) {
