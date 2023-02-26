@@ -6,7 +6,7 @@
  *
  * Automatically rename file/image uploads according to a configurable format
  *
- * Copyright (C) 2020 by Adrian Jones
+ * Copyright (C) 2023 by Adrian Jones
  * Licensed under GNU/GPL v2, see LICENSE.TXT
  *
  */
@@ -22,7 +22,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.3.3',
+            'version' => '1.3.4',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -733,7 +733,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         }
         if($aName == 'enabledTemplates') {
             foreach($this->wire('templates') as $currtemplate) {
-                if($currtemplate->flags & Template::flagSystem) continue;
+                if($currtemplate->name != 'user' && ($currtemplate->flags & Template::flagSystem)) continue;
                 $field->addOption($currtemplate->id, $currtemplate->name);
             }
         }
