@@ -6,7 +6,7 @@
  *
  * Automatically rename file/image uploads according to a configurable format
  *
- * Copyright (C) 2023 by Adrian Jones
+ * Copyright (C) 2024 by Adrian Jones
  * Licensed under GNU/GPL v2, see LICENSE.TXT
  *
  */
@@ -22,7 +22,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.3.4',
+            'version' => '1.3.5',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -296,16 +296,20 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         $textareaFields = $this->wire('fields')->find("type=FieldtypeTextarea|FieldtypeTextareaLanguage");
         $fieldsStr = $textareaFields->implode('|', 'name');
         $oldRelativeUrl = str_replace($this->wire('config')->paths->root, '', $oldFilename);
-        foreach($this->wire('pages')->find("$fieldsStr%=$oldRelativeUrl, include=all") as $p) {
+        $oldRelativeUrlSansExt = str_replace(pathinfo($oldFilename, PATHINFO_EXTENSION), '', $oldRelativeUrl);
+        foreach($this->wire('pages')->find("$fieldsStr%=$oldRelativeUrlSansExt, include=all") as $p) {
             foreach($textareaFields as $taf) {
                 if($p->$taf != '') {
                     $pagedom = new DOMDocument();
                     libxml_use_internal_errors(true);
-                    $pagedom->loadHTML(mb_convert_encoding($p->$taf, 'HTML-ENTITIES', 'UTF-8'));
+                    // add <cun> as fake root element so that domdocument can parse the html properly and not add extra closing </p> tag
+                    $pagedom->loadHTML('<?xml encoding="utf-8" ?><cun>' . $p->$taf . '</cun>', LIBXML_HTML_NODEFDTD | LIBXML_HTML_NOIMPLIED | LIBXML_SCHEMA_CREATE);
                     $pagedom = $this->replaceRteLink($pagedom, $newFilename, $oldFilename, 'a', 'href');
                     $pagedom = $this->replaceRteLink($pagedom, $newFilename, $oldFilename, 'img', 'src');
+                    // remove fake root element
+                    $html = str_replace(['<cun>', '</cun>', '<?xml encoding="utf-8" ?>'], '', $pagedom->saveHtml());
                     $p->of(false);
-                    $p->$taf = $pagedom->saveHTML();
+                    $p->$taf = $html;
                     libxml_clear_errors();
                     $p->save($taf);
                 }
