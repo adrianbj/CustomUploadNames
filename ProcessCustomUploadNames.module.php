@@ -22,7 +22,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.3.5',
+            'version' => '1.3.6',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -110,7 +110,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         // admin
         $process = $this->wire('process');
         if($process instanceof WirePageEditor) {
-            if($process->getPage()->template == 'language') return;
+            if(!isset($process->getPage()->template) || $process->getPage()->template == 'language') return;
             $pagefile = $event->argumentsByName("pagefile");
             $field = $event->object;
             $method = 'admin';
