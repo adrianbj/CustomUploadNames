@@ -1,25 +1,49 @@
 $(document).ready(function() {
 
-    $('#RenameRules .Inputfields').not('.ui-helper-clearfix').sortable({ axis: "y" });
+    $('#RenameRules .Inputfields').not('.ui-helper-clearfix').sortable({ axis: "y", handle: ".cun-header" });
 
-    $('#RenameRules .InputfieldWrapper').each(function() {
-        $(this).prepend('<label style="cursor:move;" class="cun-header InputfieldHeader" for="">&nbsp;<span class="ui-icon ui-icon-trash InputfieldRepeaterTrash deleterow" style="display: block;float:right;cursor:pointer;">Delete</span><span class="ui-icon ui-icon-arrowthick-2-n-s InputfieldRepeaterDrag"></span></label>');
-        $(this).css("margin-top", "20px");
-        // this was breaking theming etc in Tracy ACE editor and it also doesn't seem like it is needed anymore?
-        //$('script:not([src^=http])').remove(); // removes inline script that was causing duplication of Add button for the Enabled Pages setting when drag/drop ordering.
+    var ruleHeaderHtml = function(num) {
+        return '<li class="Inputfield cun-header-wrap" style="width:100%">' +
+            '<div class="cun-header">' +
+                '<i class="fa fa-arrows InputfieldRepeaterDrag" title="Drag to reorder"></i>' +
+                '<span class="cun-rule-num">Rule ' + num + '</span>' +
+                '<span class="cun-header-actions">' +
+                    '<i class="fa fa-trash-o InputfieldRepeaterTrash deleterow" title="Delete rule"></i>' +
+                '</span>' +
+            '</div>' +
+        '</li>';
+    };
+
+    $('#RenameRules .InputfieldWrapper').each(function(i) {
+        $(this).find('> .Inputfields').prepend(ruleHeaderHtml(i + 1));
     });
+
+    // Update rule header labels with number and filename format
+    var updateRuleLabels = function() {
+        $('#RenameRules .InputfieldWrapper').each(function(i) {
+            var format = $(this).find('input[name=filenameFormat]').val();
+            var label = 'Rule ' + (i + 1);
+            if(format) label += ': ' + format;
+            $(this).find('.cun-rule-num').text(label);
+        });
+    };
+
+    updateRuleLabels();
+    $('#RenameRules .Inputfields').not('.ui-helper-clearfix').on('sortstop', updateRuleLabels);
+    $(document).on('change keyup', 'input[name=filenameFormat]', updateRuleLabels);
 
 
     // Add an "Add another rule" button to the Rename Rules container
-    $('#RenameRules').after('<br /><button class="ui-button ui-widget ui-corner-all ui-state-default" id="addRule" style="display: block; margin:20px 0; clear: left;"><span class="ui-button-text">Add another rule</span></button><br />');
+    $('#RenameRules').after('<button class="ui-button ui-widget ui-corner-all ui-state-default" id="addRule"><span class="ui-button-text">Add another rule</span></button>');
 
     // Handle what happens on click of our new button
     var addRule = function(e) {
         e.preventDefault();
         $(this).toggleClass('ui-state-active');
         var options = { sortable: false };
-        var newRow = $('<li class="Inputfield InputfieldWrapper InputfieldColumnWidthFirst" style="margin-top:20px;">').load('?addRule=' + ($('#RenameRules ul.Inputfields ul.Inputfields').length), function() {
-            $(newRow).prepend('<label style="cursor:move;" class="cun-header InputfieldHeader" for="">&nbsp;<span class="ui-icon ui-icon-trash InputfieldRepeaterTrash deleterow" style="display: block;float:right;cursor:pointer;">Delete</span><span class="ui-icon ui-icon-arrowthick-2-n-s InputfieldRepeaterDrag"></span></label>');
+        var ruleCount = $('#RenameRules ul.Inputfields ul.Inputfields').length;
+        var newRow = $('<li class="Inputfield InputfieldWrapper InputfieldColumnWidthFirst">').load('?addRule=' + ruleCount, function() {
+            $(newRow).find('> .Inputfields').prepend(ruleHeaderHtml(ruleCount + 1));
             $(newRow).find(".InputfieldAsmSelect select[multiple=multiple]").asmSelect(options);
             $(".InputfieldPageListSelectMultipleData").each(function() {
                 InputfieldPageListSelectMultiple.init($(this));
@@ -29,33 +53,25 @@ $(document).ready(function() {
 
     };
 
-    if($.isFunction($(document).on)) {
-        $('#addRule').on('click', addRule);
-    }
-    else {
-        $('#addRule').live('click', addRule);
-    }
+    $(document).on('click', '#addRule', addRule);
 
 
     // Handle click of the delete button
-    var deleteRow = function(e){
+    $(document).on('click', '.deleterow', function(e) {
         e.stopPropagation();
         e.preventDefault();
-        $(this).toggleClass('ui-state-active');
-        $(this).parent().parent().remove();
-    }
-
-    if($.isFunction($(document).on)) {
-        $('.deleterow').on('click', deleteRow);
-    } else {
-        $('.deleterow').live('click', deleterow);
-    }
+        var $rule = $(this).closest('.InputfieldWrapper');
+        $rule.slideUp(200, function() {
+            $(this).remove();
+            updateRuleLabels();
+        });
+    });
 
     // Takes over from normal submit to store our categories in an array and then submit as normal
     $('#Inputfield_submit_save_module, #Inputfield_submit').click(function(e) {
         if($('#RenameRules').length) {
             // A variable to store the CSV data in
-            var data = new Array();
+            var data = [];
             // Iterate through the rows of rename rules
             $('#RenameRules ul.Inputfields ul.Inputfields').each(function(i) {
                 data[i] = {};
@@ -69,7 +85,7 @@ $(document).ready(function() {
                 data[i]['renameOnSave'] = $(this).find('input[name=renameOnSave]').is(':checked') ? 1 : 0;
             });
 
-            if (getObjectSize(data) > 0) {
+            if (data.length > 0) {
                 $('#Inputfield_ruleData').val(JSON.stringify(data));
             } else {
                 $('#Inputfield_ruleData').val('');
@@ -78,14 +94,3 @@ $(document).ready(function() {
     });
 
 });
-
-
-// Gets the number of elements in an object. This is for older browsers. In newer ones you can just do: Object.keys(obj.Data).length
-var getObjectSize = function(obj) {
-    var len = 0, key;
-    for (key in obj) {
-        if (obj.hasOwnProperty(key)) len++;
-    }
-    return len;
-};
-
