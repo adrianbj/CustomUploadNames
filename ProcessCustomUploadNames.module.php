@@ -1,4 +1,4 @@
-<?php
+<?php namespace ProcessWire;
 
 /**
  * ProcessWire Custom Upload Names
@@ -6,7 +6,7 @@
  *
  * Automatically rename file/image uploads according to a configurable format
  *
- * Copyright (C) 2024 by Adrian Jones
+ * Copyright (C) 2026 by Adrian Jones
  * Licensed under GNU/GPL v2, see LICENSE.TXT
  *
  */
@@ -22,7 +22,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
     public static function getModuleInfo() {
         return array(
             'title' => __('Custom Upload Names'),
-            'version' => '1.3.6',
+            'version' => '1.4.0',
             'author' => 'Adrian Jones',
             'summary' => __('Automatically rename file/image uploads according to a configurable format'),
             'href' => 'http://modules.processwire.com/modules/process-custom-upload-names/',
@@ -91,7 +91,12 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         if($this->ruleData!='') {
             // page in the admin
             $processPage = $this->wire('page');
-            if($processPage->process && in_array('WirePageEditor', class_implements((string) $processPage->process))) {
+            $className = (string) $processPage->process;
+            if($className == '') return;
+            $fullClassName = __NAMESPACE__ . "\\{$className}";
+            if(!class_exists($fullClassName)) return;
+            $implements = class_implements($fullClassName);
+            if($processPage->process && $implements && in_array(__NAMESPACE__ . '\\WirePageEditor', $implements)) {
                 $this->addHookBefore('InputfieldFile::fileAdded', $this, 'customRenameUploads', array('priority'=>10));
             }
             // front-end API
@@ -299,7 +304,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         $oldRelativeUrlSansExt = str_replace(pathinfo($oldFilename, PATHINFO_EXTENSION), '', $oldRelativeUrl);
         foreach($this->wire('pages')->find("$fieldsStr%=$oldRelativeUrlSansExt, include=all") as $p) {
             foreach($textareaFields as $taf) {
-                if($p->$taf != '') {
+                if($p->$taf != '' && strpos($p->$taf, $oldRelativeUrlSansExt) !== false) {
                     $pagedom = new DOMDocument();
                     libxml_use_internal_errors(true);
                     // add <cun> as fake root element so that domdocument can parse the html properly and not add extra closing </p> tag
