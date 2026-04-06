@@ -305,7 +305,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         foreach($this->wire('pages')->find("$fieldsStr%=$oldRelativeUrlSansExt, include=all") as $p) {
             foreach($textareaFields as $taf) {
                 if($p->$taf != '' && strpos($p->$taf, $oldRelativeUrlSansExt) !== false) {
-                    $pagedom = new DOMDocument();
+                    $pagedom = new \DOMDocument();
                     libxml_use_internal_errors(true);
                     // add <cun> as fake root element so that domdocument can parse the html properly and not add extra closing </p> tag
                     $pagedom->loadHTML('<?xml encoding="utf-8" ?><cun>' . $p->$taf . '</cun>', LIBXML_HTML_NODEFDTD | LIBXML_HTML_NOIMPLIED | LIBXML_SCHEMA_CREATE);
