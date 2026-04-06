@@ -14,6 +14,11 @@
 class ProcessCustomUploadNames extends WireData implements Module, ConfigurableModule {
 
     /**
+     * Guard against recursive renaming when save() is called inside the Pages::saved hook
+     */
+    private $renaming = false;
+
+    /**
      * getModuleInfo is a module required by all modules to tell ProcessWire about them
      *
      * @return array
@@ -102,6 +107,8 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
 
     protected function customRenameUploads(HookEvent $event) {
+
+        if($this->renaming) return;
 
         $pageid = null;
 
@@ -269,7 +276,9 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
 
                     if(!is_null($file)) {
                         $file->rename(pathinfo($newFilename, PATHINFO_BASENAME));
+                        $this->renaming = true;
                         $filePage->save($field->name);
+                        $this->renaming = false;
                     }
                 }
                 break; // need to break out of $rules foreach once there has been a match and the file has been renamed.
@@ -446,13 +455,17 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         if($filenameLength != '') $newname = $this->truncate($newname, $filenameLength);
 
         $n = 0;
+        // the file being renamed should not count as a collision with itself
+        $currentBasename = $path_parts['basename'];
         // if a number mask (### etc) is supplied in the filename format
         if(strpos($newname,'#') !== false) {
             do {
                 $n++;
                 $custom_n = str_pad($n, substr_count($newname, '#'), '0', STR_PAD_LEFT);
                 $finalFilename = $path_parts['dirname'] . '/' . str_replace(array('_', '.'), '-', $this->wire('sanitizer')->pageNameTranslate($newname)) . '-'. $custom_n . '.' . $path_parts['extension'];
-            } while($n < 1000 && (in_array(pathinfo($finalFilename, PATHINFO_BASENAME), $this->getAllFilenames($filePage)) || file_exists($finalFilename)));
+                $candidateBasename = pathinfo($finalFilename, PATHINFO_BASENAME);
+                $candidateBasename = pathinfo($finalFilename, PATHINFO_BASENAME);
+            } while($candidateBasename !== $currentBasename && (in_array($candidateBasename, $this->getAllFilenames($filePage)) || file_exists($finalFilename)));
         }
         elseif(!is_null($file) && $file->isTemp()) {
             $finalFilename = $path_parts['dirname'] . '/' . str_replace(array('_', '.'), '-', $this->wire('sanitizer')->pageNameTranslate($newname)) . '.' . $path_parts['extension'];
@@ -461,7 +474,8 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
             do {
                 $finalFilename = $path_parts['dirname'] . '/' . str_replace(array('_', '.'), '-', $this->wire('sanitizer')->pageNameTranslate($newname)) . ($n>0 ? '-'.$n : '') . '.' . $path_parts['extension'];
                 $n++;
-            } while($n < 1000 && (in_array(pathinfo($finalFilename, PATHINFO_BASENAME), $this->getAllFilenames($filePage)) || file_exists($finalFilename)));
+                $candidateBasename = pathinfo($finalFilename, PATHINFO_BASENAME);
+            } while($candidateBasename !== $currentBasename && (in_array($candidateBasename, $this->getAllFilenames($filePage)) || file_exists($finalFilename)));
         }
 
         return $finalFilename;
