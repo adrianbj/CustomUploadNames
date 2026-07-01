@@ -755,7 +755,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         exit;
     }
 
-    private function _createInputfieldText($ipName, $ipTitle, $ipValue='', $ipDesc='', $ipOptions='', $ipNotes='', $ipWidth, $ipRequired=false) {
+    private function _createInputfieldText($ipName, $ipTitle, $ipValue='', $ipDesc='', $ipOptions='', $ipNotes='', $ipWidth=100, $ipRequired=false) {
         $field =  $this->wire('modules')->get("InputfieldText");
         $field->name = $ipName;
         $field->label = $ipTitle;
@@ -767,7 +767,7 @@ class ProcessCustomUploadNames extends WireData implements Module, ConfigurableM
         return $field;
     }
 
-    private function _createInputfieldCheckbox($ipName, $ipTitle, $ipValue='', $ipDesc='', $ipOptions='', $ipNotes='', $ipWidth, $ipRequired=false) {
+    private function _createInputfieldCheckbox($ipName, $ipTitle, $ipValue='', $ipDesc='', $ipOptions='', $ipNotes='', $ipWidth=100, $ipRequired=false) {
         $field = $this->wire('modules')->get("InputfieldCheckbox");
         $field->name = $ipName;
         $field->label = $ipTitle;
